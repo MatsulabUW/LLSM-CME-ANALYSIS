@@ -1,0 +1,9 @@
+name: lap_track
+dependencies: 
+  - python=3.10
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-image
+  - jupyter
+  - scipy
