@@ -1,0 +1,5 @@
+spot_intensities_c3_all.pkl is the input for notebook 2 
+cleaned_spots_intensities_c3_all.pkl is the input for notebook 3 
+track_df_c3_cleaned.pkl is the input for notebook 4 
+track_df_updated.pkl is the input for notebook 5
+track_df_updated.pkl & filtered_tracks.pkl is the input for notebook 6
