@@ -233,18 +233,32 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
         result_array = total_sum_track_visualisation(track_number,raw_image,main_tracking_df)
         track_array = crop_movie(result_array)
     
+    
     length_of_track = len(track_array)
     # Set the number of rows and columns for subplots
     num_cols = 7
     num_rows = length_of_track // num_cols + 1
+    
+    unique_tracks = main_tracking_df[main_tracking_df['track_id'] == track_number]['frame'].unique()
+    subplot_titles_tuple = tuple(f'frame_{i}' for i in unique_tracks)
 
-    fig = make_subplots(rows=num_rows, cols=7)
+    fig = make_subplots(rows=num_rows, cols=7, subplot_titles = subplot_titles_tuple, x_title = 'Frames', 
+                        y_title = 'Intensity', row_titles = None, column_titles = None)
+    
+    
+    for i in range(length_of_track):
+        fig.layout.annotations[i]["font"] = {'size': 10, 'color':'black'}
+
+    fig.layout.annotations[length_of_track]["font"] = {'size': 15, 'color':'black'}
+    fig.layout.annotations[length_of_track+1]["font"] = {'size': 15, 'color':'black'}
 
     r = 1
     c = 1
     for i in range(len(track_array)):
-        image = px.imshow(track_array[i])
+        image = px.imshow(track_array[i],color_continuous_scale = 'blues')
         fig.add_trace(image.data[0], row = r, col = c)
+        fig.update_xaxes(showticklabels=False, row=r, col=c)
+        fig.update_yaxes(showticklabels=False, row=r, col=c)
         if i != 0 and (i+1) % (num_cols) == 0: 
             r = r + 1
             c = 1
@@ -252,7 +266,9 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
             c = c + 1
     r = 1 
     c = 1
-
+    
+    #fig.update_layout(title = 'Raw Image 3', title_x = 0.5, title_font=dict(size=30, color = 'black'))
+    
     return fig
 
 #Line chart plot
@@ -267,9 +283,9 @@ def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking
                             line=dict(color='green', width = 4)))
 
     # Edit the layout
-    fig.update_layout(title='Intensity Over Time', title_x = 0.5,
-                       xaxis_title='Frames',  xaxis_color = 'black', title_font = dict(color = 'black', size = 30),
-                       yaxis_title='Amplitude', yaxis_color = 'black', legend=dict(bgcolor=None),autosize = True, plot_bgcolor = None,
+    fig.update_layout(title=None, title_x = 0.5,
+                       xaxis_title='Frames',  xaxis_color = 'black', title_font = dict(color = 'black', size = 40),
+                       yaxis_title='Intensity', yaxis_color = 'black', legend=dict(bgcolor=None),autosize = True, plot_bgcolor = None,
                      paper_bgcolor = None)
 
 
@@ -284,8 +300,7 @@ app = Dash(__name__)
 app.layout = html.Div(children=[
     html.H1("Raw Intensity Visualization Dashboard", style={"text-align": "center"}),
     html.Br(),
-    html.Div(
-        children = [
+    html.Div(children = [
     html.Label('Select the Track Number:'),
     dcc.Dropdown(
         id='track_number_dropdown',
@@ -301,24 +316,28 @@ app.layout = html.Div(children=[
         value = 'max_intensity_projection', 
         #style = {'width': '50%'}
     ),
+    ],
+    ),
+    html.Div(
+        children = [
     html.Br(),html.Label('Channel 3 Track'),
     dcc.Graph(id='track_visualization', figure=plot_raw_movie()),
         ],
-style={"display":"inline-block", "width":"48%",'text-align': 'center'}
+style={'border': '2px solid black', "display":"inline-block", "width":"48%",'text-align': 'center'}
     ),
     
     html.Div(children=[ 
     html.Br(),html.Label('Channel 2 Track'),
     dcc.Graph(id='track_visualization_2', figure=plot_raw_movie()),
     ],
-style={"display":"inline-block", "width":"48%", "text-align":"center"}
+style={ 'border': '2px solid black', "display":"inline-block", "width":"48%", "text-align":"center"}
     ),
 
     html.Div(children = [ 
     html.Br(), html.Label('Channel 1 Track'),
     dcc.Graph(id='track_visualization_3', figure=plot_raw_movie()),
     ],
-style={ "display":"inline-block", "width":"48%", 'text-align': 'center'}    
+style={  'border': '2px solid black', "display":"inline-block", "width":"48%", 'text-align': 'center'}    
     ),
 
     html.Div(children=[
