@@ -33,10 +33,17 @@ class Track:
         self.peak_intensities = self.calculate_peak_intensities()
         self.peak_intensity_frames = self.calculate_peak_intensity_frame()
         self.mean_displacement_track = self.calculate_mean_displacement()
+        self.mean_z_value = z.mean()
+        self.mean_z_displacement = self.calculate_mean_z_displacement()
+        #self.boundary = apical/basal/lateral, use mean z for this 
 
     def calculate_mean_displacement(self):
         displacement = ((self.x - self.x.shift())**2 + (self.y - self.y.shift())**2 + (self.z - self.z.shift())**2)**0.5
         return displacement.mean()
+    
+    def calculate_mean_z_displacement(self):
+        displacement_z = abs(self.z - self.z.shift())
+        return displacement_z.mean()
     
     def print_intensities(self):
         return self.intensities
@@ -63,6 +70,7 @@ class Track:
             index = np.argmax(self.intensities[:,i])
             ans = index + self.track_start
             print(ans)
+
 
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',

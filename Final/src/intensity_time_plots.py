@@ -191,49 +191,173 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
     1. Returns the array of primary channel tracks aligned with respect to secondary channel peaks
     2. Returns the array of secondary channel tracks where tracks are aligned with all peaks of tracks being on 
     the same index. (the index is determined by bufferZero)
+    2. Returns the array of tertiary channel tracks where tracks are aligned with all peaks of tracks being on 
+    the same index. (the index is determined by bufferZero) (Only returned if intensity_to_plot is of length three)
     
     '''
 
 
     trackIdArray = listOfTrackIdsAssignedToCohort
     
-    p_buffer = []
-    s_buffer = []
-    t_buffer = []
-    
     bufferSize = 200
     bufferZero = 100
 
-    
-    p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-    s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
-    t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
-     
-    counter = 0
-    
-    for trackId in trackIdArray:
-        track = dataframe[dataframe[track_id_col_name] == trackId]
-        p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
-        s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
-        t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
-        maxIdx = np.argmax(t_intensity) # was s_intensity before
+    if len(backgroundIntensity) != len(intensity_to_plot):
+        raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
+    if len(intensity_to_plot) == 1:
+        raise ValueError('Minimum acceptable dimensions are 2')
+
+    elif len(intensity_to_plot) == 2:
+
+        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
         
-    
-        for i in range(0,len(track)):
-            if(not np.isnan(p_intensity[i])):
-                p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
-            if(not np.isnan(s_intensity[i])):
-                s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
-            if(not np.isnan(t_intensity[i])):
-                t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i])
+        counter = 0
+        
+        for trackId in trackIdArray:
+            track = dataframe[dataframe[track_id_col_name] == trackId]
+            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+            maxIdx = np.argmax(s_intensity) # was s_intensity before
+        
+            for i in range(0,len(track)):
+                if(not np.isnan(p_intensity[i])):
+                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
+                if(not np.isnan(s_intensity[i])):
+                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
 
-           
-                
-        counter = counter+1;
+                    
+            counter = counter+1;
+        
+        return p_buffer,s_buffer
+    
+    elif len(intensity_to_plot) == 3:
+
+        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+        t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
+        
+        counter = 0
+        
+        for trackId in trackIdArray:
+            track = dataframe[dataframe[track_id_col_name] == trackId]
+            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+            t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
+            maxIdx = np.argmax(t_intensity)
+
+            
+        
+            for i in range(0,len(track)):
+                if(not np.isnan(p_intensity[i])):
+                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
+                if(not np.isnan(s_intensity[i])):
+                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
+                if(not np.isnan(t_intensity[i])):
+                    t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i])
+
+            
+                    
+            counter = counter+1;
+
     
     
-    return (p_buffer,s_buffer, t_buffer)
+        return p_buffer,s_buffer, t_buffer
+
+
+
+def cumulative_plots(buffers: list, background_intensity: list, time_shift: int, colors: list = ['magenta', 'lime', 'blue'], 
+                     graph_title: str = 'Average Amplitude over time', axis_labels: list = ['Time', 'Amplitude'], framerate_msec: float = 2.3 *1000,
+                     legend_vals: list = ['Primary Channel (Clathrin)', 'Secondary Channel (Dynamin)', 'Tertiary Channel (Actin)']):
+    
+    '''
+    Parameters:
+
+    1. buffers: type(list), this is a list of arrays. The arrays in the list are supposed to be the ones which are returned from the function 
+    createBufferForLifetimeCohort. These will be used for the plots 
+    2. background_intensity: type(list), this a list of ints. Must be the same as used in the function createBufferForLifetimeCohort to get normal results 
+    3. time_shift: type(int), used for aligning the x-axis as needed 
+    4. colors: type(list), color for each channel. must be passed in the order and dimension matching buffers. default ['magenta', 'lime', 'blue']
+    5. graph_title: type(str), title for the graph. default 'Average Amplitude over time'
+    6. axis_labels: type(list), order ['x-axis label', 'y-axis label']. default ['Time', 'Amplitude']
+    7. framerate_msec: type(float), the framerate of the original movie in milli seconds. default 2.3 
+    8. legend_vals: type(list), values to be used for the legend. default ['Primary Channel (Clathrin)', 'Secondary Channel (Dynamin)', 'Tertiary Channel (Actin)']
+
+    Note: 
+    buffers, background_intensity, colors, legend vals, all must have the same dimensions
+
+    Output: 
+    Prints graph 
+    
+    '''
+    
+    
+
+    plt.figure(dpi=300)
+
+    bufferSize = 200
+    bufferZero = 100
+
+    timeShift = np.array([0,30,70,120]) + time_shift
+    alph = 0.05
+    liwi = 0.5
+
+    if len(buffers) != len(colors):
+        raise ValueError("dimensions of buffers list and colors list are not equal")
+
+    if len(buffers) == 1:
+        raise ValueError("minimum length 2 and maximum length 3 needed for buffers for plotting")
+
+    elif len(buffers) == 2:
+        p_buffer = buffers[0]
+        s_buffer = buffers[1]
+        p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
+        s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
+        p_buffer_std = np.nanstd(p_buffer,axis=0)
+        s_buffer_std = np.nanstd(s_buffer,axis=0)
+        time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
+
+        plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
+        plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
+
+        plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
+        plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
+
+    elif len(buffers) == 3:
+        p_buffer = buffers[0]
+        s_buffer = buffers[1]
+        t_buffer = buffers[2]
+        p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
+        s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
+        t_buffer_average = np.nanmean(t_buffer,axis=0)-background_intensity[2]
+        p_buffer_std = np.nanstd(p_buffer,axis=0)
+        s_buffer_std = np.nanstd(s_buffer,axis=0)
+        t_buffer_std = np.nanstd(t_buffer,axis=0)
+        time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
+
+        plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
+        plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
+
+        plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
+        plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
+
+        plt.plot(time, t_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time,t_buffer_average,c=colors[2],lw=liwi+1, label = legend_vals[2], zorder =2)
+        plt.fill_between(time,t_buffer_average-t_buffer_std,t_buffer_average+t_buffer_std,facecolor=colors[2],alpha=0.08)
+
+
+
+    plt.xlabel(axis_labels[0])
+    plt.ylabel(axis_labels[1])
+    plt.title(graph_title)
+    plt.legend(fontsize=6)
+    
+
 
 
 def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list, backgroundIntensity: list, 
@@ -279,59 +403,3 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
     
     
     return (p_buffer,s_buffer)
-
-
-def cumulative_plots(primary_buffer, secondary_buffer, tertiary_buffer, background_intensity, time_shift, framerate_msec = 2.3*1000):
-    
-    ##Between 5 to 10 frames 
-
-    plt.figure(dpi=300)
-
-    #m_colors = ['magenta','red','crimson']
-    #s_colors = ['mediumspringgreen','lawngreen','lime']
-    p_colors = ['magenta','magenta','magenta','magenta']
-    s_colors = ['lime','lime','lime','lime']
-    t_colors = ['blue','blue','blue','blue']
-
-
-    bufferSize = 200
-    bufferZero = 100
-
-
-    timeShift = np.array([0,30,70,120]) + time_shift
-    alph = 0.05
-    liwi = 0.5
-
-
-    #backgroundIntensity = 0
-    #framerate_msec = 2.3*1000
-    cohortIdx = 0
-    p_buffer = primary_buffer
-    s_buffer = secondary_buffer
-    t_buffer = tertiary_buffer
-
-    p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
-    s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
-    t_buffer_average = np.nanmean(t_buffer,axis=0)-background_intensity[2]
-    p_buffer_std = np.nanstd(p_buffer,axis=0)
-    s_buffer_std = np.nanstd(s_buffer,axis=0)
-    t_buffer_std = np.nanstd(t_buffer,axis=0)
-    time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
-
-    plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-    plt.plot(time,p_buffer_average,c=p_colors[cohortIdx],lw=liwi+1, label = 'Primary Channel (Clathrin)', zorder =2)
-    plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=p_colors[3],alpha=0.08)
-
-    plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-    plt.plot(time,s_buffer_average,c=s_colors[cohortIdx],lw=liwi+1, label = 'Secondary Channel (Dynamin)', zorder =2)
-    plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=s_colors[3],alpha=0.08)
-
-    plt.plot(time, t_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-    plt.plot(time,t_buffer_average,c=t_colors[cohortIdx],lw=liwi+1, label = 'Tertiary Channel (Actin)', zorder =2)
-    plt.fill_between(time,t_buffer_average-t_buffer_std,t_buffer_average+t_buffer_std,facecolor=t_colors[3],alpha=0.08)
-
-    plt.xlabel('Time')
-    plt.ylabel('Amplitude')
-    plt.title('Averaged Intensity Plots aligned by peaks')
-    plt.legend(fontsize=6)
-    
