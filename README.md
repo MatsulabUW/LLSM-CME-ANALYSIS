@@ -13,6 +13,8 @@ Lastly, an interactive dashboard is also developed to assist with viewing raw tr
 
 ## Dashboard 
 
+![dashboard](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/dashboard.png)
+
 ## Installation:
 
 ```bash
