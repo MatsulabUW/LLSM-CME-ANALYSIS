@@ -1,0 +1,10 @@
+dash
+laptrack
+napari[all]
+napari-bbox
+plotly
+seaborn
+matplotlib
+jupyter
+aicsimageio
+nbClassic
