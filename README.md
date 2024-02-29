@@ -13,6 +13,13 @@ Furthermore, this endeavor seeks to elucidate the distinct roles of proteins suc
 2. create a conda environment <br> conda create --name cme_pipeline python==3.10
 3. pip install -r requirements.txt 
 
+```bash
+git clone 
+conda create --name cme_pipeline python=3.10
+conda acitvate cme_pipeline 
+pip install -r requirements.txt
+```
+
 
 ## Main Functions: 
 [source code](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/tree/main/Final/src)
