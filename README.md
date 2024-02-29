@@ -1,7 +1,7 @@
 # 4-D Image Analysis Pipeline 
 ## Pipeline for time-series microscopy data on Clathrin-Mediated Endocytosis
 
-![Alt Text] (https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/main_image.gif)
+![main gif](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/main_image.gif)
 
 ## Overview 
 This project aims to analyze the dynamics of clathrin-mediated endocytosis, with a specific focus on the roles played by dynamin and actin across various membrane domains (apical, basal, and lateral). The dataset comprises 3D time-series data acquired using lattice light sheet microscopy coupled with fluorescence techniques.
