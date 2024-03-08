@@ -138,6 +138,9 @@ def fit_multiple_gaussians(image,centers,sigmas,width_parameters):
 def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses):
 
     absolute_errors = []
+    counter_fit = 0
+    counter_not_fit = 0
+    index_of_maximas = []
 
     for i in range(len(maximas)):
         temp_gaussian = net_gaussians[i]
@@ -160,7 +163,11 @@ def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses):
             temp_absolute_error.append(mean_absolute_error_sigmas)
 
             absolute_errors.append(temp_absolute_error)
+            counter_fit += 1
         else:
             print('the gaussian did not fit')
+            counter_not_fit += 1 
+            index_of_maximas.append(i)
 
-    return absolute_errors
+    print(f'the number of times the gaussian fitting worked was{counter_fit}and the number of times the gaussian did not fit was {counter_not_fit}')
+    return absolute_errors, index_of_maximas
