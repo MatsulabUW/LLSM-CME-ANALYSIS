@@ -16,7 +16,7 @@ Lastly, an interactive dashboard is also developed to assist with viewing raw tr
 ```bash
 git clone git@github.com:Mdanishnadeem/Image-Analysis-Tracking.git
 conda create --name cme_pipeline python==3.10
-conda acitvate cme_pipeline 
+conda activate cme_pipeline 
 pip install -r requirements.txt
 ```
 
