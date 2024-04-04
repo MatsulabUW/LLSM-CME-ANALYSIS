@@ -3,6 +3,7 @@ import numpy as np
 from skimage import io
 import matplotlib.pyplot as plt 
 from matplotlib.ticker import FuncFormatter
+from aicsimageio import AICSImage
 
 
 '''
@@ -207,6 +208,64 @@ def plot_z_sum(file_path: str):
     plt.xlabel('Z slice')
     plt.ylabel('Pixels sum')
     plt.title('Pixel sum over Z slices')
+
+#to work without importing everything in memory. For larger datasets 
+def plot_z_sum_bd(file_path: str):
+    
+    '''
+    This function takes in an entire time series image and prints a graph of voxel sum across z slices for few selected time frames. This is an helper function
+    for determining the apical basal and lateral boundaries. 
+
+    Parameters:
+    1. file_path: type(str), file path of the image 
+
+    Output: 
+    1. plots graph of sum of intensity over each z slice for different frames
+    '''
+
+    # Load the TIFF file using AICSImage
+    c1_raw = AICSImage(file_path)
+    frames = c1_raw.dims.T
+    lower_frame = (frames * 0.25) // 1
+    center_frame = (frames * 0.5) // 1
+    upper_frame = (frames * 0.75) // 1
+    times_to_plot = []
+    times_to_plot.append(0)
+    times_to_plot.append(int(lower_frame))
+    times_to_plot.append(int(center_frame))
+    times_to_plot.append(int(upper_frame))
+    times_to_plot.append(frames-1)
+    all_frame_sum = []
+
+    # Generate x-axis values (index values from sum_of_pixels)
+    x_values = np.arange(c1_raw.dims.Z)
+            
+    for frame in times_to_plot:
+        lazy_single_frame_input = c1_raw.get_image_dask_data("ZYX", T=frame, C=0)
+        c1_raw_frame = lazy_single_frame_input.compute()
+        print(c1_raw_frame.shape)
+        print(f'frame is {frame}')
+        # Initialize an empty list to store the sum of pixel values for each z value
+        sum_of_pixels = []
+        # Iterate over the z-axis of the 3D numpy array
+        for z in range(c1_raw_frame.shape[0]):
+            # Calculate the sum of pixel values for the current z value
+            sum_of_pixels_z = np.sum(c1_raw_frame[z,:, :])
+            # Append the sum to the list
+            sum_of_pixels.append(sum_of_pixels_z)
+        all_frame_sum.append(sum_of_pixels)
+    
+    for i in range(len(all_frame_sum)):
+        colors = ['red', 'green', 'blue', 'orange', 'pink']
+        plt.plot(x_values, all_frame_sum[i], color = colors[i], label = f'frame {times_to_plot[i]}')
+        # Format y-axis ticks to display whole values
+    
+    plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0f}'.format(x)))
+    plt.legend()
+    plt.xlabel('Z slice')
+    plt.ylabel('Pixels sum')
+    plt.title('Pixel sum over Z slices')
+
 
 # Function to allocate membrane regions
 def allocate_membrane_regions(df: pd.DataFrame, basal_range: list, lateral_range: list, apical_range: list,  mean_z_col: str = 'mean_z'):
