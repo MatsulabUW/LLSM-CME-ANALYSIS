@@ -28,6 +28,7 @@ class Detector:
         y (int): Height of the image data.
         x (int): Width of the image data.
         parallel_process (int): Number of parallel processes to use for processing.
+        target_channel(int): Number of the channel to perfrom detection on
 
     Methods:
         single_frame_segmentation(frame):
@@ -40,7 +41,8 @@ class Detector:
             Runs spot detection and analysis on multiple frames in parallel and returns the results in a combined DataFrame.
     """
 
-    def __init__(self, zarr_obj: zarr.array, save_directory: str, spot_intensity: float, dist_between_spots: int, sigma_estimations: list, n_jobs: int):
+    def __init__(self, zarr_obj: zarr.array, save_directory: str, spot_intensity: float, dist_between_spots: int, sigma_estimations: list, n_jobs: int,
+                 channel_to_detect: int):
         """
         Initializes the Detector with the specified parameters.
         
@@ -51,6 +53,8 @@ class Detector:
             dist_between_spots (int): Minimum distance between detected spots.
             sigma_estimations (list of float): List containing estimated standard deviations of spots in z, y, and x dimensions.
             n_jobs (int): Number of parallel processes to use. If -1, uses all available cores minus one.
+            channel_to_detect (int): Determines which channel to perform detection on. 
+            since the detector can take input of multi channel movie stored as zarr so determing which channel to perform detection on is important. 
         """
 
         self.zarr_obj = zarr_obj
@@ -66,6 +70,7 @@ class Detector:
         self.y = zarr_obj.shape[3]
         self.x = zarr_obj.shape[4]
         self.parallel_process = n_jobs
+        self.target_channel = channel_to_detect - 1
     
 
     def single_frame_segmentation(self,frame: int):
@@ -83,8 +88,7 @@ class Detector:
         #get the number of frames for our original data for automated analysis for all frames 
         print('frame number is', frame)
         
-        single_frame_input = self.zarr_obj[frame]
-        single_frame_input = single_frame_input[0,:,:,:]
+        single_frame_input = self.zarr_obj[frame,self.target_channel,:,:,:]
         print(single_frame_input.shape)
         single_frame_input = np.transpose(single_frame_input,axes =(0,2,1))
         print(single_frame_input.shape)
@@ -138,14 +142,6 @@ class Detector:
         
         error_list, index_list = check_fitting_error(single_frame_input,maximas,gaussians,sigmas_guesses)
 
-        # Construct the filename based on the loop index (time_frame)
-        filename_pkl = f'df_c3_t{frame}.pkl'
-
-        # Construct the full file path by joining the directory and filename
-        file_path = os.path.join(self.save_directory, filename_pkl)
-
-        # Save the DataFrame to a pickle file with the specified path
-        df.to_pickle(file_path)
         return df
 
     def cores_to_use(self):
@@ -213,6 +209,14 @@ class Detector:
             for frame, result_df in sorted(frame_results):
                 result_df['frame'] = frame  # Add a column with the frame number
                 final_df = pd.concat([final_df, result_df], ignore_index=True)
+            
+            # Construct the filename based on the loop index (time_frame)
+            filename_pkl = f'all_detections_channel{self.target_channel + 1}.pkl'
+
+            # Construct the full file path by joining the directory and filename
+            file_path = os.path.join(self.save_directory, filename_pkl)
+
+            final_df.to_pickle(file_path)
             
             # Return the combined dataframe instead of saving
             return final_df

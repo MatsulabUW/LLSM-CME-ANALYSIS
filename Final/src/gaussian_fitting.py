@@ -169,5 +169,5 @@ def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses):
             counter_not_fit += 1 
             index_of_maximas.append(i)
 
-    print(f'the number of times the gaussian fitting worked was{counter_fit}and the number of times the gaussian did not fit was {counter_not_fit}')
+    print(f'the number of times the gaussian fitting worked was {counter_fit} and the number of times the gaussian did not fit was {counter_not_fit}')
     return absolute_errors, index_of_maximas
