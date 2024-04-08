@@ -24,7 +24,7 @@ def peak_local_max_3d(image,min_distance,threshold=0):
     Returns
     -------
     output : ndarray
-        * If `indices = True`  : [[x1,y1,z1],[x2,y2,z2],...] coordinates of peaks.
+        * If `indices = True`  : [[z1,x1,y1],[z2,x2,y2],...] coordinates of peaks.
 
     Notes
     -----
