@@ -3,512 +3,429 @@ import pandas as pd
 from skimage import io
 import numpy as np 
 from typing import Optional, Union
-
-#Fixed radius version
-def extract_pixels_data_fixed(target_image: np.ndarray, frame_centers: list, radii: list, offset: list = [0,0]):
-    '''
-    The function above uses a volume of pixels from one channel and extracts data for the same pixels from the 
-    other channel. It uses a fixed radii and ignores all the zero pixel values which exist while doing calculations. 
-
-    Inputs: 
-    1. target_image: type(array), this is a 4-D array with dimensions as (t,z,y,x). The target image is the channel for which 
-    we want to extract the data for not the one for which we have already have the values for
-    2. frame_centers: type(list), this is a list of list. Each time frame has its z,y,x coords stored in it. It has the center's
-    of the entire track. 
-    3. radii: type(list), the radius of a spot in each dimension. Passed in as [z,y,x]
-    4. offset: type(list), this is an optional argument, it can be used to adjust for offset if there is any between 
-    two channels. Must be in the form [y,x]
-
-    Outputs: 
-    1. mean: type(list), returns the mean pixel value for the volume for each time frame of a specific track 
-    2. maximum: type(list), returns the max pixel value for the volume for each time frame of a specific track
-    3. minimum: type(list), returns the min pixel value for the volume for each time frame of a specific track
-    4. pixel_values: type(list), this is a list of arrays, returns all the non zero pixel values for the selected volume
-    5. max_loc: type(list), this is a list of arrays, returns the coordinates of the pixel with maximum value in the volume 
-    6. voxel_sum_array: type(list), returns the pixel values sum of the selected volume(does not include any zero values)
-    '''
+import zarr
+from gaussian_fitting import fit_multiple_gaussians
+from gaussian_fitting import check_fitting_error
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+import os
 
 
-    mean = []
-    maximum = []
-    minimum = []
-    pixel_values = []
-    max_loc = []
-    voxel_sum_array = []
-    max_z, max_y, max_x = target_image[0].shape  # Assuming image is a 3D numpy array
-    radius_z = radii[0]
-    radius_y = radii[1]
-    radius_x = radii[2]
+class Extractor:
+    
+    def __init__(self, zarr_obj: zarr.array, dataframe: pd.DataFrame, radii: list, frame_col_name: str, radi_col_name: list, 
+                n_jobs: int):
+        self.zarr_obj = zarr_obj
+        self.channels = zarr_obj.shape[1]
+        self.frames = zarr_obj.shape[0]
+        self.z = zarr_obj.shape[2]
+        self.y = zarr_obj.shape[3]
+        self.x = zarr_obj.shape[4]
+        self.dataframe = dataframe
+        self.radii = radii
+        self.frame_col_name = frame_col_name
+        self.parallel_process = n_jobs
+        self.radi_col_names = radi_col_name
 
-    for coords in frame_centers:
-        #print('current coordinates are: ', coords)
-        frame = int(coords[0])
-        z = coords[1]
-        y = max(0,coords[2] - offset[0])
-        x = max(0,coords[3] - offset[1])
         
+    
 
-        # Ensure lower bounds
-        z_start = int(max(0, z - radius_z))
-        y_start = int(max(0, y - radius_y))
-        x_start = int(max(0, x - radius_x))
+    #Fixed radi/sigma variant for large files which do not fit in memory 
+    def voxel_sum_fixed_bd(self,center_col_names: list,  channel: int):
 
-        # Ensure upper bounds
-        z_end = int(min(max_z, z + radius_z + 1))
-        y_end = int(min(max_y, y + radius_y + 1))
-        x_end = int(min(max_x, x + radius_x + 1))
+        current_channel = channel - 1 
+        frames = self.dataframe[self.frame_col_name].nunique()
+        max_z = self.z
+        max_y = self.y
+        max_x = self.x
+        voxel_sum_array = []
+        pixel_values = []
 
-        # Extract relevant pixels
-        extracted_pixels = target_image[frame,z_start:z_end, y_start:y_end, x_start:x_end]
-        #print('shape of extracted pixels is ', extracted_pixels.shape)
+        radius_z = self.radii[0]
+        radius_y = self.radii[1]
+        radius_x = self.radii[2]
         
-        # Exclude pixels with value 0 before calculating mean
-        non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+        for frame in range(frames): 
+            print(f'current frame is {frame}')
+            current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
+            current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
-        if non_zero_pixels.size > 0:
-            # Calculate statistics
-            mean_value = np.mean(non_zero_pixels)
-            max_value = np.max(non_zero_pixels)
-            voxel_sum = np.sum(non_zero_pixels)
             
-            # Get coordinates of the maximum value
-            max_index = np.unravel_index(np.argmax(extracted_pixels), extracted_pixels.shape)
-            max_coords = (z_start + max_index[0], y_start + max_index[1], x_start + max_index[2])
-            min_value = np.min(non_zero_pixels)
+            for i in range(len(current_df)):
+
+                z = current_df.loc[i,center_col_names[0]]
+                y = current_df.loc[i,center_col_names[1]]
+                x = current_df.loc[i,center_col_names[2]]
+
+
+                # Ensure lower bounds
+                z_start = int(max(0, z - radius_z))
+                y_start = int(max(0, y - radius_y))
+                x_start = int(max(0, x - radius_x))
+
+                # Ensure upper bounds
+                z_end = int(min(max_z, z + radius_z + 1))
+                y_end = int(min(max_y, y + radius_y + 1))
+                x_end = int(min(max_x, x + radius_x + 1))
+
+                # Extract relevant pixels
+                extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
+                #print('shape of extracted pixels is ', extracted_pixels.shape)
+
+                # Exclude pixels with value 0 before calculating mean
+                non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+
+                if non_zero_pixels.size > 0:
+                    # Calculate statistics
+                    voxel_sum = np.sum(non_zero_pixels)
+
+                    # Get coordinates of the maximum value
+                    voxel_sum_array.append(voxel_sum)
+                    pixel_values.append(non_zero_pixels)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
             
-            mean.append(mean_value)
-            maximum.append(max_value)
-            max_loc.append(max_coords)
-            minimum.append(min_value)
-            pixel_values.append(extracted_pixels)
-            voxel_sum_array.append(voxel_sum)
+        return voxel_sum_array,pixel_values
+
+    #Variable radi/sigma variant for large files which do not fit in memory 
+    def voxel_sum_variable_bd(self ,center_col_names: list, channel: int):
+
+        current_channel = channel - 1 
+        frames = self.dataframe[self.frame_col_name].nunique()
+        max_z = self.z
+        max_y = self.y
+        max_x = self.x
+        voxel_sum_array = []
+        pixel_values = []
+        
+        for frame in range(frames): 
+            print(f'current frame is {frame}')
+            current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
+            current_image = self.zarr_obj[frame,current_channel,:,:,:]
+        
+            
+            for i in range(len(current_df)):
+                radius_z = current_df.loc[i,self.radi_col_names[0]]
+                radius_y = current_df.loc[i,self.radi_col_names[1]]
+                radius_x = current_df.loc[i,self.radi_col_names[2]]
+                z = current_df.loc[i,center_col_names[0]]
+                y = current_df.loc[i,center_col_names[1]]
+                x = current_df.loc[i,center_col_names[2]]
+
+
+                # Ensure lower bounds
+                z_start = int(max(0, z - radius_z))
+                y_start = int(max(0, y - radius_y))
+                x_start = int(max(0, x - radius_x))
+
+                # Ensure upper bounds
+                z_end = int(min(max_z, z + radius_z + 1))
+                y_end = int(min(max_y, y + radius_y + 1))
+                x_end = int(min(max_x, x + radius_x + 1))
+
+                # Extract relevant pixels
+                extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
+                #print('shape of extracted pixels is ', extracted_pixels.shape)
+
+                # Exclude pixels with value 0 before calculating mean
+                non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+
+                if non_zero_pixels.size > 0:
+                    # Calculate statistics
+                    voxel_sum = np.sum(non_zero_pixels)
+
+                    # Get coordinates of the maximum value
+                    voxel_sum_array.append(voxel_sum)
+                    pixel_values.append(non_zero_pixels)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
+            
+        return voxel_sum_array,pixel_values
+
+    #Variable radii(sigma values) version for handling bigger files which do not fit in memory 
+    def extract_pixels_data_variable_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
+        
+        current_channel = channel - 1
+        mean = []
+        maximum = []
+        minimum = []
+        pixel_values = []
+        max_loc = []
+        frames = self.dataframe[self.frame_col_name].nunique()
+        max_z = self.z
+        max_y = self.y
+        max_x = self.x
+        
+        
+        for frame in range(frames):
+            print(f'current frame number is {frame}')
+            current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
+            current_image = self.zarr_obj[frame,current_channel,:,:,:]
+            
+            for i in range(len(current_df)):
+                #print('current coordinates are: ', coords)
+                z = current_df.loc[i, center_col_names[0]]
+                y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
+                x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
+                radius_z = current_df.loc[i,self.radi_col_names[0]]
+                radius_y = current_df.loc[i,self.radi_col_names[1]]
+                radius_x = current_df.loc[i,self.radi_col_names[2]]
+
+
+                # Ensure lower bounds
+                z_start = int(max(0, z - radius_z))
+                y_start = int(max(0, y - radius_y))
+                x_start = int(max(0, x - radius_x))
+
+                # Ensure upper bounds
+                z_end = int(min(max_z, z + radius_z + 1))
+                y_end = int(min(max_y, y + radius_y + 1))
+                x_end = int(min(max_x, x + radius_x + 1))
+
+                # Extract relevant pixels
+                extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
+
+                # Exclude pixels with value 0 before calculating mean
+                non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+
+                if non_zero_pixels.size > 0:
+                    # Calculate statistics
+                    mean_value = np.mean(non_zero_pixels)
+                    max_value = np.max(non_zero_pixels)
+                    voxel_sum = np.sum(non_zero_pixels)
+
+                    # Get coordinates of the maximum value
+                    max_index = np.unravel_index(np.argmax(extracted_pixels), extracted_pixels.shape)
+                    max_coords = (z_start + max_index[0], y_start + max_index[1], x_start + max_index[2])
+                    min_value = np.min(non_zero_pixels)
+
+                    mean.append(mean_value)
+                    maximum.append(max_value)
+                    max_loc.append(max_coords)
+                    minimum.append(min_value)
+                    pixel_values.append(extracted_pixels)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    mean.append(np.nan)  # Use NaN or any other suitable value
+                    maximum.append(np.nan)
+                    minimum.append(np.nan)
+                    temp = (np.nan, np.nan, np.nan)
+                    max_loc.append(temp)
+                    pixel_values.append(extracted_pixels)
+
+        return mean,maximum,minimum,pixel_values,max_loc
+    
+    #Fixed radii(sigma values) version for handling bigger files which do not fit in memory 
+    def extract_pixels_data_fixed_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
+        
+        current_channel = channel - 1
+        mean = []
+        maximum = []
+        minimum = []
+        pixel_values = []
+        max_loc = []
+        frames = self.dataframe[self.frame_col_name].nunique()
+        max_z = self.z
+        max_y = self.y
+        max_x = self.x
+        radius_z = self.radii[0]
+        radius_y = self.radii[1]
+        radius_x = self.radii[2]
+        
+        
+        for frame in range(frames):
+            print(f'current frame number is {frame}')
+            current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
+            current_image = self.zarr_obj[frame,current_channel,:,:,:]
+            
+            for i in range(len(current_df)):
+                #print('current coordinates are: ', coords)
+                z = current_df.loc[i, center_col_names[0]]
+                y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
+                x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
+
+
+                # Ensure lower bounds
+                z_start = int(max(0, z - radius_z))
+                y_start = int(max(0, y - radius_y))
+                x_start = int(max(0, x - radius_x))
+
+                # Ensure upper bounds
+                z_end = int(min(max_z, z + radius_z + 1))
+                y_end = int(min(max_y, y + radius_y + 1))
+                x_end = int(min(max_x, x + radius_x + 1))
+
+                # Extract relevant pixels
+                extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
+
+                # Exclude pixels with value 0 before calculating mean
+                non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+
+                if non_zero_pixels.size > 0:
+                    # Calculate statistics
+                    mean_value = np.mean(non_zero_pixels)
+                    max_value = np.max(non_zero_pixels)
+                    voxel_sum = np.sum(non_zero_pixels)
+
+                    # Get coordinates of the maximum value
+                    max_index = np.unravel_index(np.argmax(extracted_pixels), extracted_pixels.shape)
+                    max_coords = (z_start + max_index[0], y_start + max_index[1], x_start + max_index[2])
+                    min_value = np.min(non_zero_pixels)
+
+                    mean.append(mean_value)
+                    maximum.append(max_value)
+                    max_loc.append(max_coords)
+                    minimum.append(min_value)
+                    pixel_values.append(extracted_pixels)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    mean.append(np.nan)  # Use NaN or any other suitable value
+                    maximum.append(np.nan)
+                    minimum.append(np.nan)
+                    temp = (np.nan, np.nan, np.nan)
+                    max_loc.append(temp)
+                    pixel_values.append(extracted_pixels)
+
+        return mean,maximum,minimum,pixel_values,max_loc
+
+    def gaussian_fitting_single_frame(self, expected_sigma: list, center_col_names: list, frame: int, channel: int, dist_between_spots: int):
+        
+        current_channel = channel - 1
+        sigmaExpected_x__pixels = expected_sigma[2]
+        sigmaExpected_y__pixels = expected_sigma[1]
+        sigmaExpected_z__pixels = expected_sigma[0]
+
+        center_col_names_adjusted = [center_col_names[0], center_col_names[2], center_col_names[1]]
+
+        sigmas_guesses = []
+        current_df = self.dataframe[self.dataframe[self.frame_col_name]==frame]
+        maximas = current_df[center_col_names_adjusted].values
+        single_frame_input = self.zarr_obj[frame,current_channel,:,:,:]
+        single_frame_input = np.transpose(single_frame_input,axes =(0,2,1))
+
+
+        for i in range(len(maximas)):
+            sigmas_guesses.append([sigmaExpected_z__pixels,sigmaExpected_x__pixels,sigmaExpected_y__pixels])
+            
+        #last parameter in the fit_multiple_gaussians is similar to min_distance above, we should give half of the 
+        #value here of min_distance   
+        half_dist = dist_between_spots / 2
+        gaussians, gaussians_popt = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
+            
+        accumulator = []
+        for gaussian in gaussians:
+
+            if(gaussian!=-1):
+                amplitude = gaussian[0]
+                mu_x     = int(gaussian[1][1]) 
+                mu_y     = int(gaussian[1][2]) 
+                mu_z     = int(gaussian[1][0]) 
+                sigma_x  = int(gaussian[2][1]) 
+                sigma_y  = int(gaussian[2][2])
+                sigma_z  = int(gaussian[2][0])
+                accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
+            else: 
+
+                amplitude = np.nan
+                mu_x     = np.nan
+                mu_y     = np.nan
+                mu_z     = np.nan
+                sigma_x  = np.nan
+                sigma_y  = np.nan
+                sigma_z  = np.nan
+                accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
+
+                
+        accumulator = np.array(accumulator)
+        print(accumulator.shape)
+        df = pd.DataFrame()
+        df['amplitude'] = accumulator[:,0]
+        df['mu_x'] = accumulator[:,1]
+        df['mu_y'] = accumulator[:,2]
+        df['mu_z'] = accumulator[:,3]
+        df['sigma_x'] = accumulator[:,4]
+        df['sigma_y'] = accumulator[:,5]
+        df['sigma_z'] = accumulator[:,6]
+        
+        error_list, index_list = check_fitting_error(single_frame_input,maximas,gaussians,sigmas_guesses)
+
+        return df
+
+    def cores_to_use(self):
+        """
+        Determines the optimal number of cores to use for parallel processing.
+        
+        Returns:
+            int: The number of cores to use. Raises a ValueError if the specified number of cores exceeds available cores.
+        """
+
+        if self.parallel_process == -1:
+            return os.cpu_count() - 1
+        elif self.parallel_process > os.cpu_count():
+            raise ValueError(f"Error: You specified {self.parallel_process} cores, but only {os.cpu_count()} cores are available.")
+        else: 
+            return self.parallel_process
+            
+    def run_parallel_frame_processing(self, expected_sigma: list, center_col_name: list,
+                                    dist_between_spots: int, channel: int,  max_frames: int = 2, all_frames: bool = False):
+        """
+        Processes multiple frames in parallel using the single_frame_segmentation method and returns the combined results.
+        
+        Parameters:
+            max_frames (int, optional): The maximum number of frames to process. Defaults to 2.
+            all_frames (bool, optional): If true all the frames will be processed regardless of max_frames
+            
+        Returns:
+            DataFrame: A pandas DataFrame containing the combined analysis results from all processed frames.
+        """
+
+        if all_frames == True: 
+            frames_to_process = self.dataframe[self.frame_col_name].nunique()
         else:
-            # If all pixels are 0, handle this case as needed
-            mean.append(np.nan)  # Use NaN or any other suitable value
-            maximum.append(0)
-            minimum.append(0)
-            pixel_values.append(extracted_pixels)
-            print('zero pixels here')
+            frames_to_process = max_frames
+
+        num_of_parallel_process = self.cores_to_use()
+        futures_to_frame = {}
+
+        # Initialize a ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers = num_of_parallel_process) as executor:
         
-    return mean,maximum,minimum,pixel_values,max_loc,voxel_sum_array
+            # Submit tasks for each frame to be processed in parallel
+            for frame in range(frames_to_process):
+                future = executor.submit(self.gaussian_fitting_single_frame,  expected_sigma, center_col_name, frame, channel, dist_between_spots)
+                futures_to_frame[future] = frame  # Map future to frame number
 
-
-#Variable radii(sigma values) version
-def extract_pixels_data_variable(raw_image: np.ndarray, mean_col_names: list, dataframe: pd.DataFrame
-                                 ,radi_col_names: list, frame_col_name: str, offset: list = [0,0]):
-    '''
-    The function above uses a volume of pixels from one channel and extracts data for the same pixels from the 
-    other channel. It uses a variable radii and ignores all the zero pixel values which exist while doing calculations. 
-
-    **Inputs**: 
-    1. raw_image: type(array), this is a 4-D array with dimensions as (t,z,y,x). The target image is the channel for which 
-    we want to extract the data for not the one for which we have already have the values for
-    2. mean_col_names: type(list), this is a list of strings. This contains the names of the columns which contain the center
-    coordinates. It must be passed in the form [z,y,x]
-    3. dataframe: type(dataframe), this is the main dataframe returned from tracking of our primary channel  and contains 
-    the frame number along with radi/sigma values so that they can be used for constructing the volume 
-    4. radi_col_names: type(list), this is a list of strings. This contains the name of the columns which will act as a 
-    radius to construct volume around the coordinates. It must be passed in the form [sigma_z,sigma_y,sigma_x]
-    5. frame_col_name: type(str), the column name which contains the frame number
-    6. offset: type(list), this is an optional argument, it can be used to adjust for offset if there is any between 
-    two channels. Must be in the form [y,x]
-
-    **Outputs**: 
-    1. mean: type(list), returns the mean pixel value for the volume for each time frame of a specific track 
-    2. maximum: type(list), returns the max pixel value for the volume for each time frame of a specific track
-    3. minimum: type(list), returns the min pixel value for the volume for each time frame of a specific track
-    4. pixel_values: type(list), this is a list of arrays, returns all the non zero pixel values for the selected volume
-    5. max_loc: type(list), this is a list of arrays, returns the coordinates of the pixel with maximum value in the volume 
-    '''
-
-    if not isinstance(raw_image, np.ndarray):
-        raise TypeError("Input must be a NumPy array")
-    if raw_image.ndim != 4:
-        raise ValueError("Input array must be 4-D")
-    
-    if not isinstance(dataframe, pd.DataFrame):
-        raise TypeError("Input must be a DataFrame")
-    
-    mean = []
-    maximum = []
-    minimum = []
-    pixel_values = []
-    max_loc = []
-    max_z, max_y, max_x = raw_image[0].shape  # Assuming image is a 3D numpy array
-
-    for i in range(len(dataframe)):
-        #print('current coordinates are: ', coords)
-        frame = int(dataframe.loc[i,frame_col_name])
-        z = dataframe.loc[i, mean_col_names[0]]
-        y = max(0,dataframe.loc[i, mean_col_names[1]] - offset[0])
-        x = max(0,dataframe.loc[i, mean_col_names[2]] - offset[1])
-        radius_z = dataframe.loc[i,radi_col_names[0]]
-        radius_y = dataframe.loc[i,radi_col_names[1]]
-        radius_x = dataframe.loc[i,radi_col_names[2]]
-        
-
-        # Ensure lower bounds
-        z_start = int(max(0, z - radius_z))
-        y_start = int(max(0, y - radius_y))
-        x_start = int(max(0, x - radius_x))
-
-        # Ensure upper bounds
-        z_end = int(min(max_z, z + radius_z + 1))
-        y_end = int(min(max_y, y + radius_y + 1))
-        x_end = int(min(max_x, x + radius_x + 1))
-
-        # Extract relevant pixels
-        extracted_pixels = raw_image[frame,z_start:z_end, y_start:y_end, x_start:x_end]
-        
-        # Exclude pixels with value 0 before calculating mean
-        non_zero_pixels = extracted_pixels[extracted_pixels != 0]
-        
-        if non_zero_pixels.size > 0:
-            # Calculate statistics
-            mean_value = np.mean(non_zero_pixels)
-            max_value = np.max(non_zero_pixels)
-            voxel_sum = np.sum(non_zero_pixels)
             
-            # Get coordinates of the maximum value
-            max_index = np.unravel_index(np.argmax(extracted_pixels), extracted_pixels.shape)
-            max_coords = (z_start + max_index[0], y_start + max_index[1], x_start + max_index[2])
-            min_value = np.min(non_zero_pixels)
+            frame_results = []
+            # Use tqdm to show progress as tasks complete
+            for future in tqdm(as_completed(futures_to_frame), total=frames_to_process, desc="Processing frames"):
+                frame = futures_to_frame[future]
+                try:
+                    # If you need the result for anything, or to catch exceptions:
+                    result = future.result()
+                    if result is not None: 
+                        # Append a tuple of (frame, result) to frame_results
+                        frame_results.append((frame, result))
+                except Exception as e:
+                    # Handle exceptions (if any) from your processed function
+                    print(f"Error processing frame: {e}")
             
-            mean.append(mean_value)
-            maximum.append(max_value)
-            max_loc.append(max_coords)
-            minimum.append(min_value)
-            pixel_values.append(extracted_pixels)
-        else:
-            # If all pixels are 0, handle this case as needed
-            mean.append(np.nan)  # Use NaN or any other suitable value
-            maximum.append(np.nan)
-            minimum.append(np.nan)
-            temp = (np.nan, np.nan, np.nan)
-            max_loc.append(temp)
-            pixel_values.append(extracted_pixels)
-        
-    return mean,maximum,minimum,pixel_values,max_loc
+            # Initialize an empty DataFrame
+            final_df = pd.DataFrame()
 
-
-#Variable radi(sigma) variant
-def voxel_sum_variable(dataframe: pd.DataFrame, mean_col_names: list, raw_image: np.ndarray, radi_col_names: list, 
-                       frame_col_name: str):
-    '''
-    This function calculates the voxel sum for a volume constructed using center coords and variable sigma values. It ignores 
-    all pixels which have value zero
-
-    Inputs: 
-    1. dataframe: type(dataframe), this is the main tracking dataframe which contains the center coords and sigma/radi values 
-    2. mean_col_names: type(list), this is a list of strings. This contains the names of the columns which contain the center
-    coordinates. It must be passed in the form [z,y,x]
-    3. raw_image: type(array), this is a 4-D array with dimensions as (t,z,y,x). The image should be the one for which 
-    coordinates are being used. 
-    4. radi_col_names: type(list), this is a list of strings. This contains the name of the columns which will act as a 
-    radius to construct volume around the coordinates. It must be passed in the form [sigma_z,sigma_y,sigma_x]
-    5. frame_col_name: type(str), the column name which contains the frame number
-
-    Outputs: 
-    1. voxel_sum_array: type(list), returns the voxel sum
-    2. pixel_vales: type(list), list of array, returns all the values for the pixels used for voxel sum 
-    '''
-    max_z, max_y, max_x = raw_image[0].shape  # Assuming image is a 3D numpy array
-    voxel_sum_array = []
-    pixel_values = []
-    
-    for i in range(len(dataframe)):
-        frame = int(dataframe.loc[i,frame_col_name])
-        z = dataframe.loc[i,mean_col_names[0]]
-        y = dataframe.loc[i,mean_col_names[1]]
-        x = dataframe.loc[i,mean_col_names[2]]
-        radius_z = dataframe.loc[i,radi_col_names[0]]
-        radius_y = dataframe.loc[i,radi_col_names[1]]
-        radius_x = dataframe.loc[i,radi_col_names[2]]
-        
-
-        # Ensure lower bounds
-        z_start = int(max(0, z - radius_z))
-        y_start = int(max(0, y - radius_y))
-        x_start = int(max(0, x - radius_x))
-
-        # Ensure upper bounds
-        z_end = int(min(max_z, z + radius_z + 1))
-        y_end = int(min(max_y, y + radius_y + 1))
-        x_end = int(min(max_x, x + radius_x + 1))
-
-        # Extract relevant pixels
-        extracted_pixels = raw_image[frame,z_start:z_end, y_start:y_end, x_start:x_end]
-        #print('shape of extracted pixels is ', extracted_pixels.shape)
-        
-        # Exclude pixels with value 0 before calculating mean
-        non_zero_pixels = extracted_pixels[extracted_pixels != 0]
-        
-        if non_zero_pixels.size > 0:
-            # Calculate statistics
-            voxel_sum = np.sum(non_zero_pixels)
+            for frame, result_df in sorted(frame_results):
+                result_df['frame'] = frame  # Add a column with the frame number
+                final_df = pd.concat([final_df, result_df], ignore_index=True)
             
-            # Get coordinates of the maximum value
-            voxel_sum_array.append(voxel_sum)
-            pixel_values.append(non_zero_pixels)
-        else:
-            # If all pixels are 0, handle this case as needed
-            voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
-        
-    return voxel_sum_array,pixel_values
+            # Construct the filename based on the loop index (time_frame)
+            #filename_pkl = f'all_detections_channel{self.target_channel + 1}.pkl'
 
-#Fixed radi/sigma variant
-def voxel_sum_fixed(dataframe: pd.DataFrame ,col_names: list, raw_image: np.ndarray, radii: list, frame_col_name: str):
-    '''
-    This function calculates the voxel sum for a volume constructed using center coords and fixed sigma/radii values. It ignores 
-    all pixels which have value zero
+            # Construct the full file path by joining the directory and filename
+            #file_path = os.path.join(self.save_directory, filename_pkl)
 
-    Inputs: 
-    1. dataframe: type(dataframe), this is the main tracking dataframe which contains the center coords and sigma/radi values 
-    2. col_names: type(list), this is a list of strings. This contains the names of the columns which contain the center
-    coordinates. It must be passed in the form [z,y,x]
-    3. raw_image: type(array), this is a 4-D array with dimensions as (t,z,y,x). The image should be the one for which 
-    coordinates are being used. 
-    4. radii: type(list), the radius of a spot in each dimension. Passed in as [z,y,x]
-    5. frame_col_name: type(str), the column name which contains the frame number
-
-    Outputs: 
-    1. voxel_sum_array: type(list), returns the voxel sum
-    2. pixel_vales: type(list), list of array, returns all the values for the pixels used for voxel sum 
-    '''
-
-    max_z, max_y, max_x = raw_image[0].shape  # Assuming image is a 3D numpy array
-    voxel_sum_array = []
-    pixel_values = []
-    radius_z = radii[0]
-    radius_y = radii[1]
-    radius_x = radii[2]
-    
-    for i in range(len(dataframe)):
-        frame = int(dataframe.loc[i,frame_col_name])
-        z = dataframe.loc[i,col_names[0]]
-        y = dataframe.loc[i,col_names[1]]
-        x = dataframe.loc[i,col_names[2]]
-        
-
-        # Ensure lower bounds
-        z_start = int(max(0, z - radius_z))
-        y_start = int(max(0, y - radius_y))
-        x_start = int(max(0, x - radius_x))
-
-        # Ensure upper bounds
-        z_end = int(min(max_z, z + radius_z + 1))
-        y_end = int(min(max_y, y + radius_y + 1))
-        x_end = int(min(max_x, x + radius_x + 1))
-
-        # Extract relevant pixels
-        extracted_pixels = raw_image[frame,z_start:z_end, y_start:y_end, x_start:x_end]
-        #print('shape of extracted pixels is ', extracted_pixels.shape)
-        
-        # Exclude pixels with value 0 before calculating mean
-        non_zero_pixels = extracted_pixels[extracted_pixels != 0]
-        
-        if non_zero_pixels.size > 0:
-            # Calculate statistics
-            voxel_sum = np.sum(non_zero_pixels)
+            #final_df.to_pickle(file_path)
             
-            # Get coordinates of the maximum value
-            voxel_sum_array.append(voxel_sum)
-            pixel_values.append(non_zero_pixels)
-        else:
-            # If all pixels are 0, handle this case as needed
-            voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
-        
-    return voxel_sum_array,pixel_values
-
-
-#Variable radii(sigma values) version for handling bigger files which do not fit in memory 
-def extract_pixels_data_variable_bd(raw_image, mean_col_names: list, dataframe: pd.DataFrame
-                                 ,radi_col_names: list, frame_col_name: str, offset: list = [0,0]):
-    '''
-    The function above uses a volume of pixels from one channel and extracts data for the same pixels from the 
-    other channel. It uses a variable radii and ignores all the zero pixel values which exist while doing calculations. 
-
-    **Inputs**: 
-    1. raw_image: this raw image is the img object from AICSImageio tool. Its not imported into memory and will use dask_arrays to work
-    for a single time frame at a time
-    2. mean_col_names: type(list), this is a list of strings. This contains the names of the columns which contain the center
-    coordinates. It must be passed in the form [z,y,x]
-    3. dataframe: type(dataframe), this is the main dataframe returned from tracking of our primary channel  and contains 
-    the frame number along with radi/sigma values so that they can be used for constructing the volume 
-    4. radi_col_names: type(list), this is a list of strings. This contains the name of the columns which will act as a 
-    radius to construct volume around the coordinates. It must be passed in the form [sigma_z,sigma_y,sigma_x]
-    5. frame_col_name: type(str), the column name which contains the frame number
-    6. offset: type(list), this is an optional argument, it can be used to adjust for offset if there is any between 
-    two channels. Must be in the form [y,x]
-
-    **Outputs**: 
-    1. mean: type(list), returns the mean pixel value for the volume for each time frame of a specific track 
-    2. maximum: type(list), returns the max pixel value for the volume for each time frame of a specific track
-    3. minimum: type(list), returns the min pixel value for the volume for each time frame of a specific track
-    4. pixel_values: type(list), this is a list of arrays, returns all the non zero pixel values for the selected volume
-    5. max_loc: type(list), this is a list of arrays, returns the coordinates of the pixel with maximum value in the volume 
-    '''
-
-    #if not isinstance(raw_image, np.ndarray):
-        #raise TypeError("Input must be a NumPy array")
-    #if raw_image.ndim != 4:
-        #raise ValueError("Input array must be 4-D")
-    
-    #if not isinstance(dataframe, pd.DataFrame):
-        #raise TypeError("Input must be a DataFrame")
-    
-    mean = []
-    maximum = []
-    minimum = []
-    pixel_values = []
-    max_loc = []
-    max_z = raw_image.dims.Z
-    max_y = raw_image.dims.Y
-    max_x = raw_image.dims.X
-    frames = raw_image.dims.T
-    
-    for frame in range(frames):
-        print(f'current frame number is {frame}')
-        current_df = dataframe[dataframe['frame'] == frame].reset_index()
-        lazy_single_frame_input = raw_image.get_image_dask_data("ZYX", T=frame, C=0)
-        current_image = lazy_single_frame_input.compute()
-        
-        for i in range(len(current_df)):
-            #print('current coordinates are: ', coords)
-            z = current_df.loc[i, mean_col_names[0]]
-            y = max(0,current_df.loc[i, mean_col_names[1]] - offset[0])
-            x = max(0,current_df.loc[i, mean_col_names[2]] - offset[1])
-            radius_z = current_df.loc[i,radi_col_names[0]]
-            radius_y = current_df.loc[i,radi_col_names[1]]
-            radius_x = current_df.loc[i,radi_col_names[2]]
-
-
-            # Ensure lower bounds
-            z_start = int(max(0, z - radius_z))
-            y_start = int(max(0, y - radius_y))
-            x_start = int(max(0, x - radius_x))
-
-            # Ensure upper bounds
-            z_end = int(min(max_z, z + radius_z + 1))
-            y_end = int(min(max_y, y + radius_y + 1))
-            x_end = int(min(max_x, x + radius_x + 1))
-
-            # Extract relevant pixels
-            extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
-
-            # Exclude pixels with value 0 before calculating mean
-            non_zero_pixels = extracted_pixels[extracted_pixels != 0]
-
-            if non_zero_pixels.size > 0:
-                # Calculate statistics
-                mean_value = np.mean(non_zero_pixels)
-                max_value = np.max(non_zero_pixels)
-                voxel_sum = np.sum(non_zero_pixels)
-
-                # Get coordinates of the maximum value
-                max_index = np.unravel_index(np.argmax(extracted_pixels), extracted_pixels.shape)
-                max_coords = (z_start + max_index[0], y_start + max_index[1], x_start + max_index[2])
-                min_value = np.min(non_zero_pixels)
-
-                mean.append(mean_value)
-                maximum.append(max_value)
-                max_loc.append(max_coords)
-                minimum.append(min_value)
-                pixel_values.append(extracted_pixels)
-            else:
-                # If all pixels are 0, handle this case as needed
-                mean.append(np.nan)  # Use NaN or any other suitable value
-                maximum.append(np.nan)
-                minimum.append(np.nan)
-                temp = (np.nan, np.nan, np.nan)
-                max_loc.append(temp)
-                pixel_values.append(extracted_pixels)
-
-    return mean,maximum,minimum,pixel_values,max_loc
-
-#Fixed radi/sigma variant for large files which do not fit in memory 
-def voxel_sum_fixed_bd(dataframe: pd.DataFrame ,col_names: list, raw_image, 
-                    radii: list, frame_col_name: str):
-    '''
-    This function calculates the voxel sum for a volume constructed using center coords and fixed sigma/radii values. It ignores 
-    all pixels which have value zero
-
-    Inputs: 
-    1. dataframe: type(dataframe), this is the main tracking dataframe which contains the center coords and sigma/radi values 
-    2. col_names: type(list), this is a list of strings. This contains the names of the columns which contain the center
-    coordinates. It must be passed in the form [z,y,x]
-    3. raw_image: this raw image is the img object from AICSImageio tool. Its not imported into memory and will use dask_arrays to work
-    for a single time frame at a time
-    4. radii: type(list), the radius of a spot in each dimension. Passed in as [z,y,x]
-    5. frame_col_name: type(str), the column name which contains the frame number
-
-    Outputs: 
-    1. voxel_sum_array: type(list), returns the voxel sum
-    2. pixel_vales: type(list), list of array, returns all the values for the pixels used for voxel sum 
-    '''
-
-    max_z = raw_image.dims.Z
-    max_y = raw_image.dims.Y
-    max_x = raw_image.dims.X
-    frames = raw_image.dims.T
-    voxel_sum_array = []
-    pixel_values = []
-    radius_z = radii[0]
-    radius_y = radii[1]
-    radius_x = radii[2]
-    
-    for frame in range(frames): 
-        print(f'current frame is {frame}')
-        current_df = dataframe[dataframe[frame_col_name] == frame].reset_index()
-        lazy_single_frame_input = raw_image.get_image_dask_data("ZYX", T=frame, C=0)
-        current_image = lazy_single_frame_input.compute()
-        
-        for i in range(len(current_df)):
-            z = dataframe.loc[i,col_names[0]]
-            y = dataframe.loc[i,col_names[1]]
-            x = dataframe.loc[i,col_names[2]]
-
-
-            # Ensure lower bounds
-            z_start = int(max(0, z - radius_z))
-            y_start = int(max(0, y - radius_y))
-            x_start = int(max(0, x - radius_x))
-
-            # Ensure upper bounds
-            z_end = int(min(max_z, z + radius_z + 1))
-            y_end = int(min(max_y, y + radius_y + 1))
-            x_end = int(min(max_x, x + radius_x + 1))
-
-            # Extract relevant pixels
-            extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
-            #print('shape of extracted pixels is ', extracted_pixels.shape)
-
-            # Exclude pixels with value 0 before calculating mean
-            non_zero_pixels = extracted_pixels[extracted_pixels != 0]
-
-            if non_zero_pixels.size > 0:
-                # Calculate statistics
-                voxel_sum = np.sum(non_zero_pixels)
-
-                # Get coordinates of the maximum value
-                voxel_sum_array.append(voxel_sum)
-                pixel_values.append(non_zero_pixels)
-            else:
-                # If all pixels are 0, handle this case as needed
-                voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
-        
-    return voxel_sum_array,pixel_values
-
-
-# Helper function
-# Function to check if coordinates are within the range
-def check_range(row):
-    x_range = (row['mu_x'] - 2 * row['sigma_x'], row['mu_x'] + 2 * row['sigma_x'])
-    y_range = (row['mu_y'] - 2 * row['sigma_y'], row['mu_y'] + 2 * row['sigma_y'])
-    z_range = (row['mu_z'] - 2 * row['sigma_z'], row['mu_z'] + 2 * row['sigma_z'])
-
-    return (
-        x_range[0] <= row['c2_peak_x'] <= x_range[1] and
-        y_range[0] <= row['c2_peak_y'] <= y_range[1] and
-        z_range[0] <= row['c2_peak_z'] <= z_range[1]
-    )
+            # Return the combined dataframe instead of saving
+            return final_df
