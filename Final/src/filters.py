@@ -4,6 +4,7 @@ from skimage import io
 import matplotlib.pyplot as plt 
 from matplotlib.ticker import FuncFormatter
 from aicsimageio import AICSImage
+import zarr
 
 
 '''
@@ -210,22 +211,21 @@ def plot_z_sum(file_path: str):
     plt.title('Pixel sum over Z slices')
 
 #to work without importing everything in memory. For larger datasets 
-def plot_z_sum_bd(file_path: str):
+def plot_z_sum_bd(zarr_array: zarr.array):
     
     '''
     This function takes in an entire time series image and prints a graph of voxel sum across z slices for few selected time frames. This is an helper function
     for determining the apical basal and lateral boundaries. 
 
     Parameters:
-    1. file_path: type(str), file path of the image 
+    1. zarr_array: type(zarr.array), zarr array for all three channels  
 
     Output: 
     1. plots graph of sum of intensity over each z slice for different frames
     '''
 
-    # Load the TIFF file using AICSImage
-    c1_raw = AICSImage(file_path)
-    frames = c1_raw.dims.T
+    c1_raw = zarr_array
+    frames = zarr_array.shape[0]
     lower_frame = (frames * 0.25) // 1
     center_frame = (frames * 0.5) // 1
     upper_frame = (frames * 0.75) // 1
@@ -238,11 +238,10 @@ def plot_z_sum_bd(file_path: str):
     all_frame_sum = []
 
     # Generate x-axis values (index values from sum_of_pixels)
-    x_values = np.arange(c1_raw.dims.Z)
+    x_values = np.arange(zarr_array.shape[2])
             
     for frame in times_to_plot:
-        lazy_single_frame_input = c1_raw.get_image_dask_data("ZYX", T=frame, C=0)
-        c1_raw_frame = lazy_single_frame_input.compute()
+        c1_raw_frame = c1_raw[frame,0,:,:,:]
         print(c1_raw_frame.shape)
         print(f'frame is {frame}')
         # Initialize an empty list to store the sum of pixel values for each z value
