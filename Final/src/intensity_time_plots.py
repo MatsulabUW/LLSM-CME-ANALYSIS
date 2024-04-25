@@ -367,39 +367,78 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
     This is a variant of the above function which normalizes the intensity values. 
     Refer to documentation of createBufferForLifetimeCohort for more details 
     '''
-
-
+    
+    
+    
     trackIdArray = listOfTrackIdsAssignedToCohort
     
-    p_buffer = []
-    s_buffer = []
+    bufferSize = 200
+    bufferZero = 100
+
+    if len(backgroundIntensity) != len(intensity_to_plot):
+        raise ValueError('Dimensions of intensity to plot and background intensity must be same')
+
+    if len(intensity_to_plot) == 1:
+        raise ValueError('Minimum acceptable dimensions are 2')
+
+    elif len(intensity_to_plot) == 2:
+
+        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+        
+        counter = 0
+        
+        for trackId in trackIdArray:
+            track = dataframe[dataframe[track_id_col_name] == trackId]
+            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+            maxIdx = np.argmax(s_intensity) # was s_intensity before
+            p_maxIntensity = np.nanmax(p_intensity)
+            s_maxIntensity = np.nanmax(s_intensity)
+        
+            for i in range(0,len(track)):
+                if(not np.isnan(p_intensity[i])):
+                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
+                if(not np.isnan(s_intensity[i])):
+                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
+
+                    
+            counter = counter+1;
+        
+        return p_buffer,s_buffer
     
-    bufferSize = 200 #default 200
-    bufferZero = 100 #default 100
+    elif len(intensity_to_plot) == 3:
+
+        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+        t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
+        
+        counter = 0
+        
+        for trackId in trackIdArray:
+            track = dataframe[dataframe[track_id_col_name] == trackId]
+            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+            t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
+            maxIdx = np.argmax(t_intensity)
+            p_maxIntensity = np.nanmax(p_intensity)
+            s_maxIntensity = np.nanmax(s_intensity)
+            t_maxIntensity = np.nanmax(t_intensity)
+
+            
+        
+            for i in range(0,len(track)):
+                if(not np.isnan(p_intensity[i])):
+                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
+                if(not np.isnan(s_intensity[i])):
+                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
+                if(not np.isnan(t_intensity[i])):
+                    t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i]) / t_maxIntensity
+
+            
+                    
+            counter = counter+1;
 
     
-    p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-    s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
     
-    
-    counter = 0
-    
-    for trackId in trackIdArray:
-        track = dataframe[dataframe[track_id_col_name] == trackId]
-        p_intensity = track[intensity_to_plot[0]].values.astype(float)
-        s_intensity = track[intensity_to_plot[1]].values.astype(float)
-        maxIdx = np.argmax(s_intensity)
-        m_maxIntensity = np.nanmax(p_intensity)
-        s_maxIntensity = np.nanmax(s_intensity)
-        
-    
-        for i in range(0,len(track)):
-            if(not np.isnan(p_intensity[i])):
-                p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])/m_maxIntensity
-            if(not np.isnan(s_intensity[i])):
-                s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])/s_maxIntensity
-                
-        counter = counter+1;
-    
-    
-    return (p_buffer,s_buffer)
+        return p_buffer,s_buffer, t_buffer
