@@ -431,7 +431,7 @@ class Extractor:
             return final_df
 
     #Fixed radi/sigma variant for large files which do not fit in memory 
-    def voxel_sum_fixed_background(self,center_col_names: list,  channel: int):
+    def voxel_sum_fixed_background(self,center_col_names: list,  channel: int, background_radius: list):
         #make background size twice of radius in each dimension 
         #equation to code for is 
         #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
@@ -451,9 +451,9 @@ class Extractor:
         radius_y = self.radii[1]
         radius_x = self.radii[2]
 
-        max_radius_z = self.radii[0] + 1 
-        max_radius_y = self.radii[1] + 1
-        max_radius_x = self.radii[2] + 1
+        max_radius_z = self.radii[0] + background_radius[0]
+        max_radius_y = self.radii[1] + background_radius[1]
+        max_radius_x = self.radii[2] + background_radius[2]
         
         for frame in range(frames): 
             print(f'current frame is {frame}')
