@@ -1,4 +1,12 @@
 laptrack/
 self/files/
 Final/data
+Final/test_data/datasets/all_detections_channel3.pkl
+Final/test_data/datasets/cleaned_spots_intensities_c3_all.pkl
+Final/test_data/datasets/filtered_tracks_final.pkl
+Final/test_data/datasets/track_df_c3_cleaned.pkl
+Final/test_data/datasets/track_df_cleaned_final_full.pkl
+Final/test_data/full_movie/all_channels_cme_movie.tif
+Final/test_data/zarr_file/all_channels_data
+Final/test_data/zarr_file/C
 .DS_Store

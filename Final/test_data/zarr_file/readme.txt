@@ -1,1 +1,0 @@
-The zarr file will be stored here.
