@@ -270,11 +270,19 @@ def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking
 
 
 
-
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
-app.layout = html.Div([
-    html.H1("Raw Intensity Visualization Dashboard", style={"text-align": "center"}),
+layout = html.Div([
+    html.H1("Raw Intensity Visualization Dashboard", style={
+        "text-align": "center",
+        "margin-top": "20px",
+        "color": "#28527a",  # A deep blue tone
+        "background-color": "#f4f4f2",  # A soft off-white background
+        "border-radius": "10px",
+        "padding": "20px 20px",
+        "box-shadow": "0 4px 8px rgba(0, 0, 0, 0.06)",  # Lighter shadow for subtlety
+        "font-family": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        "font-weight": "600",
+        "font-size": "40px"  # Slightly larger font for better readability
+    }),
     html.Br(),
     html.Div([
         # First checklist and its label
@@ -289,7 +297,12 @@ app.layout = html.Div([
                     {'label': 'Only Actin Positive Tracks', 'value': 'only_actin'}
                 ],
                 value=['all_positive'],  # Default selected value
-                style={'width': '100%', 'border': '2px solid black'}
+                style={
+                    'width': '100%', 
+                    'border': '1px solid #7f8c8d',
+                    'padding': '10px',
+                    'border-radius': '5px'
+                }
             ),
         ], style={'width': '50%', 'display': 'inline-block', 'padding': '5px'}),
 
@@ -305,7 +318,12 @@ app.layout = html.Div([
                     {'label': 'Lateral Only', 'value': 'lateral'}
                 ],
                 value=['all'],  # Default selected value
-                style={'width': '100%', 'border': '2px solid black'}
+                style={
+                    'width': '100%', 
+                    'border': '1px solid #7f8c8d',
+                    'padding': '10px',
+                    'border-radius': '5px'
+                }
             ),
         ], style={'width': '50%', 'display': 'inline-block', 'padding': '5px'})
     ], style={'display': 'flex', 'justify-content': 'space-between'}),
@@ -316,7 +334,11 @@ app.layout = html.Div([
         id='track_number_dropdown',
         options=[],  # options set dynamically
         value=None,
-        style={'width': '100%'}
+        style={
+            'width': '100%',
+            'border': '1px solid #ccc',
+            'padding': '1px'
+        }
     ),
     html.Label('Select the type of feature to display:'),
     dcc.Dropdown(
@@ -327,7 +349,11 @@ app.layout = html.Div([
             {'label': 'Total Z Sum', 'value': 'total_z_sum'}
         ],
         value='max_intensity_projection',
-        style={'width': '100%'}
+        style={
+            'width': '100%',
+            'border': '1px solid #ccc',
+            'padding': '1px'
+        }
     ),
 
     # New dropdown for intensity types
@@ -341,7 +367,11 @@ app.layout = html.Div([
             {'label': 'Gaussian Peaks', 'value': 'Gaussian Peaks'}
         ],
         value='Adjusted Voxel Sum',  # Default selected value
-        style={'width': '100%'}
+        style={
+            'width': '100%',
+            'border': '1px solid #ccc',
+            'padding': '1px'
+        }
     ),
 
     # Additional visualization elements as previously defined
@@ -362,7 +392,7 @@ app.layout = html.Div([
         html.Label('Intensity Over time plot'),
         dcc.Graph(id='intensity_over_time')
     ], style={'border': '2px solid black', 'display': 'inline-block', 'width': '50%', 'text-align': 'center'})
-], style={'backgroundColor': 'lightgray', "padding": "50px"})
+], style={'backgroundColor': '#d6dbdf', "padding": "50px", "font-family": "'Segoe UI', Arial, sans-serif"})
 
 
 #def select_tracks_region_wise(dataframe, tracks, only_basal, only_apical, only_lateral, all):
@@ -371,7 +401,7 @@ app.layout = html.Div([
                     #{'label': 'Apical Only', 'value': 'apical'}, 
                     #{'label': 'Lateral Only', 'value': 'lateral'}
 
-@app.callback(
+@callback(
     Output('track_number_dropdown', 'options'),
     Output('track_number_dropdown', 'value'),
     Input('condition-selection', 'value'), 
@@ -407,9 +437,7 @@ def update_graph(display_type, track_number_dropdown, raw_image = zarr_arr):
     # Call your plotting function with the selected options
     return plot_raw_movie(display_type, track_number_dropdown, raw_image = zarr_arr, channel = 0)
 
-@callback(Output('intensity_over_time', 'figure'), Input('track_number_dropdown', 'value'), Input('intensity_type', 'value'))
+@callback(Output('intensity_over_time', 'figure'), 
+          Input('track_number_dropdown', 'value'), Input('intensity_type', 'value'))
 def update_intensity_plot(track_number_dropdown,intensity_type):
     return plot_intensity_over_time(track_of_interest = track_number_dropdown, type_of_intensity=intensity_type)
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
