@@ -3,11 +3,13 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Dash, html, dcc, callback 
+from dash import Dash, html, dcc, callback, no_update, State
 from dash.dependencies import Input, Output 
 from skimage import io
 import zarr 
 import dash_bootstrap_components as dbc
+import json
+from app import zarr_arr, track_df, filtered_tracks, z_shape
 
 
 
@@ -15,10 +17,12 @@ import dash_bootstrap_components as dbc
 
 ##Importing the data
 
-track_df = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/track_df_cleaned_final_full.pkl')
-filtered_tracks = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/filtered_tracks_final.pkl')
-zarr_arr = zarr.open(store = '/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/zarr_file/all_channels_data', mode = 'r')
-z_shape = zarr_arr.shape
+#track_df = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/track_df_cleaned_final_full.pkl')
+#filtered_tracks = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/filtered_tracks_final.pkl')
+#zarr_arr = zarr.open(store = '/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/zarr_file/all_channels_data', mode = 'r')
+#z_shape = zarr_arr.shape
+csv_file_path = '/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/multipage_dashboard/test_csv.csv'
+df = pd.DataFrame(columns=['track_id', 'quality'])
 
 
 ##Generate the unique number of tracks 
@@ -302,7 +306,8 @@ layout = html.Div([
                     'border': '1px solid #7f8c8d',
                     'padding': '10px',
                     'border-radius': '5px'
-                }
+                }, 
+                persistence= True,
             ),
         ], style={'width': '50%', 'display': 'inline-block', 'padding': '5px'}),
 
@@ -323,7 +328,8 @@ layout = html.Div([
                     'border': '1px solid #7f8c8d',
                     'padding': '10px',
                     'border-radius': '5px'
-                }
+                }, 
+                persistence= True, 
             ),
         ], style={'width': '50%', 'display': 'inline-block', 'padding': '5px'})
     ], style={'display': 'flex', 'justify-content': 'space-between'}),
@@ -338,7 +344,8 @@ layout = html.Div([
             'width': '100%',
             'border': '1px solid #ccc',
             'padding': '1px'
-        }
+        },
+        persistence=True,
     ),
     html.Label('Select the type of feature to display:'),
     dcc.Dropdown(
@@ -353,7 +360,8 @@ layout = html.Div([
             'width': '100%',
             'border': '1px solid #ccc',
             'padding': '1px'
-        }
+        }, 
+        persistence= True, 
     ),
 
     # New dropdown for intensity types
@@ -371,8 +379,29 @@ layout = html.Div([
             'width': '100%',
             'border': '1px solid #ccc',
             'padding': '1px'
-        }
+        }, 
+        persistence= True, 
     ),
+
+    html.Label('Select'), 
+    dcc.RadioItems(
+        id='track_quality',
+        options=[
+            {'label': 'Good', 'value': 'good'},
+            {'label': 'Tracking Issue', 'value': 'tracking_issue'},
+            {'label': 'Detection Issue', 'value': 'detection_issue'}
+        ],
+        value='good', 
+        style={
+                    'width': '50%', 
+                    'border': '1px solid #7f8c8d',
+                    'padding': '10px',
+                    'border-radius': '5px'
+                }, 
+    ),
+    html.Button('Submit', id='submit_button', n_clicks=0),
+    html.Div(id='output_container'),
+    
 
     # Additional visualization elements as previously defined
     html.Br(),
@@ -395,19 +424,15 @@ layout = html.Div([
 ], style={'backgroundColor': '#d6dbdf', "padding": "50px", "font-family": "'Segoe UI', Arial, sans-serif"})
 
 
-#def select_tracks_region_wise(dataframe, tracks, only_basal, only_apical, only_lateral, all):
-                    #{'label': 'All Regions', 'value': 'all'},
-                    #{'label': 'Basal Only', 'value': 'basal'}, 
-                    #{'label': 'Apical Only', 'value': 'apical'}, 
-                    #{'label': 'Lateral Only', 'value': 'lateral'}
 
 @callback(
     Output('track_number_dropdown', 'options'),
     Output('track_number_dropdown', 'value'),
     Input('condition-selection', 'value'), 
-    Input('region-selection', 'value')
+    Input('region-selection', 'value'), 
+    Input('intermediate-value', 'data')
 )
-def update_track_dropdown(selected_conditions, selected_regions):
+def update_track_dropdown(selected_conditions, selected_regions, int_value):
     all_positive_tracks = 'all_positive' in selected_conditions
     only_dynamin_tracks = 'only_dynamin' in selected_conditions
     only_actin_tracks = 'only_actin' in selected_conditions
@@ -420,6 +445,15 @@ def update_track_dropdown(selected_conditions, selected_regions):
     final_tracks = select_tracks_region_wise(filtered_tracks, relevant_tracks, only_basal_tracks, only_apical_tracks, only_lateral_tracks, all_tracks)
     options = [{'label': str(track_id), 'value': track_id} for track_id in final_tracks]
     value = options[0]['value'] if options else None
+    
+    # Check for the intermediate value and adjust the default value if necessary
+    if int_value:
+        try:
+            temp = json.loads(int_value) 
+            if 'selected_track_id' in temp and temp['selected_track_id'] in [opt['value'] for opt in options]:
+                value = temp['selected_track_id']
+        except json.JSONDecodeError:
+            print("Error decoding JSON from intermediate value")
     return options, value
 
 @callback(Output('track_visualization', 'figure'),[Input('display_type', 'value'),Input('track_number_dropdown', 'value')])
@@ -441,3 +475,36 @@ def update_graph(display_type, track_number_dropdown, raw_image = zarr_arr):
           Input('track_number_dropdown', 'value'), Input('intensity_type', 'value'))
 def update_intensity_plot(track_number_dropdown,intensity_type):
     return plot_intensity_over_time(track_of_interest = track_number_dropdown, type_of_intensity=intensity_type)
+
+@callback(Output('intermediate-value', 'data'), Input('track_number_dropdown', 'value'))
+def clean_data(track_id):
+     if track_id is None: 
+         return no_update
+     # Convert track_id to JSON and store
+     return json.dumps({'selected_track_id': track_id})
+
+
+@callback(
+    Output('output_container', 'children'),
+    [Input('submit_button', 'n_clicks')],
+    [State('track_number_dropdown', 'value'),
+     State('track_quality', 'value')]
+)
+def update_output(n_clicks, track_id, quality):
+    global df
+    if n_clicks > 0:
+        if track_id is not None:
+            # Append new data
+            new_row = {'track_id': track_id, 'quality': quality}
+
+            if track_id in df['track_id'].values: 
+                return f'Track {track_id} already marked in record'
+            else: 
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            
+            # Save to CSV
+            df.to_csv(csv_file_path, index=False)
+            return f'Track {track_id} marked as {quality} and saved.'
+        else:
+            return 'Please select a track before submitting.'
+    return 'No submission yet.'
