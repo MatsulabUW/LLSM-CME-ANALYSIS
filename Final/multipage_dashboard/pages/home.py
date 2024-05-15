@@ -3,26 +3,11 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Dash, html, dcc, callback, no_update, State
+from dash import Dash, html, dcc, callback, no_update, State, ctx
 from dash.dependencies import Input, Output 
-from skimage import io
-import zarr 
 import dash_bootstrap_components as dbc
 import json
-from app import zarr_arr, track_df, filtered_tracks, z_shape
-
-
-
-
-
-##Importing the data
-
-#track_df = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/track_df_cleaned_final_full.pkl')
-#filtered_tracks = pd.read_pickle('/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/datasets/filtered_tracks_final.pkl')
-#zarr_arr = zarr.open(store = '/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/test_data/zarr_file/all_channels_data', mode = 'r')
-#z_shape = zarr_arr.shape
-csv_file_path = '/Users/apple/Desktop/Akamatsu_Lab/Lap_track/Final/multipage_dashboard/test_csv.csv'
-df = pd.DataFrame(columns=['track_id', 'quality'])
+from app import zarr_arr, track_df, filtered_tracks, csv_file_path, df
 
 
 ##Generate the unique number of tracks 
@@ -275,16 +260,16 @@ def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking
 
 
 layout = html.Div([
-    html.H1("Raw Intensity Visualization Dashboard", style={
+    html.H1("Clathrin-Mediated Endocytosis Tracks Visualization" , style={
         "text-align": "center",
         "margin-top": "20px",
-        "color": "#28527a",  # A deep blue tone
-        "background-color": "#f4f4f2",  # A soft off-white background
+        "color": "white",  # A deep blue tone
+        "background-color": "#FF3333",  # A soft off-white background
         "border-radius": "10px",
         "padding": "20px 20px",
         "box-shadow": "0 4px 8px rgba(0, 0, 0, 0.06)",  # Lighter shadow for subtlety
         "font-family": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        "font-weight": "600",
+        "font-weight": "500",
         "font-size": "40px"  # Slightly larger font for better readability
     }),
     html.Br(),
@@ -313,7 +298,7 @@ layout = html.Div([
 
         # Second checklist and its label
         html.Div([
-            html.Label('Membrane Region of Tracks'),
+            html.Label('Membrane Region of Tracks (Select only one option)'),
             dcc.Checklist(
                 id='region-selection',
                 options=[
@@ -383,24 +368,58 @@ layout = html.Div([
         persistence= True, 
     ),
 
-    html.Label('Select'), 
-    dcc.RadioItems(
-        id='track_quality',
-        options=[
-            {'label': 'Good', 'value': 'good'},
-            {'label': 'Tracking Issue', 'value': 'tracking_issue'},
-            {'label': 'Detection Issue', 'value': 'detection_issue'}
-        ],
-        value='good', 
-        style={
-                    'width': '50%', 
+html.Div([
+        html.Div([
+            html.Label('Select Category of Track'), 
+            dcc.RadioItems(
+                id='track_quality',
+                options=[
+                    {'label': 'Good', 'value': 'good'},
+                    {'label': 'Fine', 'value': 'fine'},
+                    {'label': 'Bad', 'value': 'bad'}
+                ],
+                value='good', 
+                style={
+                    'width': '100%', 
                     'border': '1px solid #7f8c8d',
                     'padding': '10px',
                     'border-radius': '5px'
                 }, 
-    ),
-    html.Button('Submit', id='submit_button', n_clicks=0),
-    html.Div(id='output_container'),
+                labelStyle={'display': 'inline-block', 'margin-right': '20px'}, 
+            )
+        ], style={'flex': '3', 'padding': '5px'}),  # Flex-grow for equal width
+        
+        html.Div([
+            html.Label('More details (Not needed for good tracks)'), 
+            dcc.Dropdown(
+                id='detailed-input', 
+                options=[
+                    {'label': 'No Issue', 'value': 'N/A'}, 
+                    {'label': 'Primary Channel Tracking Issue', 'value': 'tracking Issue'}, 
+                    {'label': 'Primary Channel Detection Issue', 'value': 'detection Issue'}, 
+                    {'label': 'Primary Channel detection ok, but no activity in secondary channel', 'value': 'secondary channel filtering issue'},
+                    {'label': 'Primary Channel detection ok, but no activity in tertiary channel', 'value': 'tertiary channel filtering issue'},
+                    {'label': 'Spots in secondary channel look out of alignment', 'value': 'secondary channel alignment issue'},
+                    {'label': 'Spots in tertiary channel look out of alignment', 'value': 'tertiary channel alignment issue'},
+                ],
+                value='N/A',
+                style={
+                    'width': '100%', 
+                    'border': '1px solid #7f8c8d',
+                    'padding': '2px',
+                    'border-radius': '3px'
+                }, 
+            )
+        ], style={'flex': '3', 'padding': '5px'}),  # Flex-grow for equal width
+        
+        html.Div([
+            html.Label('Click Submit to Save'), 
+            html.Button('Submit', id='submit_button', n_clicks=0),
+            html.Div(id='output_container')
+        ], style={'flex': '1', 'padding': '10px', 'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 
+                  'align-items': 'center'})  # Flex container for vertical alignment
+    ], style={'display': 'flex', 'justify-content': 'space-between'}),  # Parent flex container
+    
     
 
     # Additional visualization elements as previously defined
@@ -421,7 +440,7 @@ layout = html.Div([
         html.Label('Intensity Over time plot'),
         dcc.Graph(id='intensity_over_time')
     ], style={'border': '2px solid black', 'display': 'inline-block', 'width': '50%', 'text-align': 'center'})
-], style={'backgroundColor': '#d6dbdf', "padding": "50px", "font-family": "'Segoe UI', Arial, sans-serif"})
+],  style={'backgroundColor': '#d6dbdf', "padding": "50px", "font-family": "'Segoe UI', Arial, sans-serif"})
 
 
 
@@ -430,7 +449,7 @@ layout = html.Div([
     Output('track_number_dropdown', 'value'),
     Input('condition-selection', 'value'), 
     Input('region-selection', 'value'), 
-    Input('intermediate-value', 'data')
+    State('intermediate-value', 'data')
 )
 def update_track_dropdown(selected_conditions, selected_regions, int_value):
     all_positive_tracks = 'all_positive' in selected_conditions
@@ -486,16 +505,16 @@ def clean_data(track_id):
 
 @callback(
     Output('output_container', 'children'),
-    [Input('submit_button', 'n_clicks')],
+    [Input('submit_button', 'n_clicks'), Input('detailed-input', 'value')],
     [State('track_number_dropdown', 'value'),
      State('track_quality', 'value')]
 )
-def update_output(n_clicks, track_id, quality):
+def update_output(n_clicks, detailed_input, track_id, quality):
     global df
-    if n_clicks > 0:
+    if "submit_button" == ctx.triggered_id:
         if track_id is not None:
             # Append new data
-            new_row = {'track_id': track_id, 'quality': quality}
+            new_row = {'track_id': track_id, 'quality': quality, 'details': detailed_input}
 
             if track_id in df['track_id'].values: 
                 return f'Track {track_id} already marked in record'
