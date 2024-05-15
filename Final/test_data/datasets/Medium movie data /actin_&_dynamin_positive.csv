@@ -1,0 +1,44 @@
+track_id,quality,details
+65,good,N/A
+137,good,N/A
+172,good,tertiary channel alignment issue
+204,good,N/A
+210,good,N/A
+310,fine,secondary channel filtering issue
+454,fine,secondary channel filtering issue
+457,fine,tracking Issue
+475,good,N/A
+802,bad,detection Issue
+964,fine,tertiary channel filtering issue
+1031,bad,tertiary channel filtering issue
+1053,good,tracking Issue
+1116,bad,tracking Issue
+1218,good,tertiary channel filtering issue
+1248,good,tertiary channel filtering issue
+1526,good,N/A
+1924,fine,secondary channel filtering issue
+1971,good,N/A
+1990,bad,tracking Issue
+2173,good,N/A
+2236,bad,tertiary channel filtering issue
+2263,good,N/A
+2395,good,N/A
+2397,good,tertiary channel filtering issue
+2664,good,tertiary channel filtering issue
+2790,good,tertiary channel filtering issue
+2796,bad,secondary channel filtering issue
+2832,fine,tracking Issue
+3228,good,N/A
+3582,fine,tertiary channel filtering issue
+3601,fine,tertiary channel filtering issue
+3633,good,N/A
+3689,fine,tertiary channel filtering issue
+3714,fine,tertiary channel filtering issue
+3876,fine,tertiary channel alignment issue
+3893,fine,N/A
+3930,good,secondary channel filtering issue
+8730,bad,secondary channel filtering issue
+10026,good,N/A
+10091,good,N/A
+10166,bad,secondary channel filtering issue
+11048,fine,N/A
