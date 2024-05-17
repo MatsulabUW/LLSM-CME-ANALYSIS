@@ -9,3 +9,4 @@ jupyter
 aicsimageio
 nbClassic
 aicspylibczi
+dash_bootstrap_components
