@@ -517,12 +517,13 @@ def update_output(n_clicks, detailed_input, track_id, quality):
             new_row = {'track_id': track_id, 'quality': quality, 'details': detailed_input}
 
             if track_id in df['track_id'].values: 
-                return f'Track {track_id} already marked in record'
+                df.loc[df['track_id'] == track_id, ['quality','details']] = [quality, detailed_input]
+                return f'Track {track_id} has been over-written'
             else: 
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             
             # Save to CSV
-            df.to_csv(csv_file_path, index=False)
+            df.to_csv(csv_file_path, index= True)
             return f'Track {track_id} marked as {quality} and saved.'
         else:
             return 'Please select a track before submitting.'

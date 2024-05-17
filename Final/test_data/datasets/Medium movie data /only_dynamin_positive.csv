@@ -1,0 +1,48 @@
+track_id,quality,details
+161,bad,secondary channel filtering issue
+168,fine,N/A
+184,fine,N/A
+192,bad,secondary channel filtering issue
+220,fine,secondary channel filtering issue
+292,bad,secondary channel filtering issue
+536,good,N/A
+588,fine,N/A
+605,good,N/A
+616,good,N/A
+629,bad,secondary channel filtering issue
+684,bad,secondary channel filtering issue
+757,fine,N/A
+838,bad,detection Issue
+866,fine,N/A
+881,good,N/A
+1001,fine,N/A
+1057,fine,N/A
+1111,good,N/A
+1428,fine,detection Issue
+1586,good,secondary channel filtering issue
+1589,good,N/A
+1684,good,N/A
+1742,good,secondary channel filtering issue
+1956,fine,N/A
+1958,good,N/A
+2253,good,N/A
+2377,good,N/A
+2556,fine,N/A
+2623,fine,N/A
+2652,bad,secondary channel filtering issue
+2710,bad,N/A
+2716,good,N/A
+8655,fine,N/A
+8720,fine,N/A
+8871,bad,detection Issue
+8898,bad,secondary channel filtering issue
+9144,fine,N/A
+9204,good,N/A
+9532,fine,N/A
+9570,good,N/A
+9746,fine,secondary channel filtering issue
+12700,good,N/A
+12911,fine,N/A
+13336,bad,secondary channel filtering issue
+13605,bad,detection Issue
+16699,bad,secondary channel filtering issue
