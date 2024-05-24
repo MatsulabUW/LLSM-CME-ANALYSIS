@@ -9,4 +9,4 @@ Final/test_data/datasets/track_df_cleaned_final_full.pkl
 Final/test_data/full_movie/all_channels_cme_movie.tif
 Final/test_data/zarr_file/all_channels_data
 Final/test_data/zarr_file/C
-.DS_Store
+.DS_Store.DS_Store
