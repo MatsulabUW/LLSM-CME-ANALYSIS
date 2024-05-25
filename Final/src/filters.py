@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from aicsimageio import AICSImage
 import zarr
+from scipy.spatial import distance_matrix
 
 
 '''
@@ -12,7 +13,7 @@ The class below is used to get relevant features of the tracks in an organised m
 '''
 
 class Track:
-    def __init__(self, track_id, frames, x, y, z, intensities):
+    def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum):
         self.track_id = track_id
         self.frames = frames
         self.x = x
@@ -27,8 +28,16 @@ class Track:
         self.mean_displacement_track = self.calculate_mean_displacement()
         self.mean_z_value = z.mean()
         self.mean_z_displacement = self.calculate_mean_z_displacement()
-        #self.boundary = apical/basal/lateral, use mean z for this 
-
+        self.max_radius_from_origin = self.max_radius()
+        self.max_distance_between_two_points = self.max_distance()
+        self.adjusted_voxel_sum_c3 = adjusted_voxel_sum[:,0]
+        self.adjusted_voxel_sum_c2 = adjusted_voxel_sum[:,1]
+        self.adjusted_voxel_sum_c1 = adjusted_voxel_sum[:,2]
+        self.adjusted_voxel_sum = self.adjusted_voxel_sum_positive()
+        self.max_z_movement = self.find_max_z_movement()
+        self.max_y_movement = self.find_max_y_movement()
+        self.max_x_movement = self.find_max_x_movement()
+        
     def calculate_mean_displacement(self):
         displacement = ((self.x - self.x.shift())**2 + (self.y - self.y.shift())**2 + (self.z - self.z.shift())**2)**0.5
         return displacement.mean()
@@ -62,11 +71,65 @@ class Track:
             index = np.argmax(self.intensities[:,i])
             ans = index + self.track_start
             print(ans)
+    
+    def max_radius(self):
+        if len(self.x) == 0 or len(self.y) == 0 or len(self.z) == 0:
+            raise ValueError("Coordinate arrays cannot be empty.")
+        # Origin is the first frame coordinates (x[0], y[0], z[0])
+        origin_x, origin_y, origin_z = self.x.iloc[0], self.y.iloc[0], self.z.iloc[0]
+        # Calculate the Euclidean distance from this origin for each coordinate set
+        radii = np.sqrt((self.x - origin_x)**2 + (self.y - origin_y)**2 + (self.z - origin_z)**2)
+        return np.max(radii)
+    
+    def max_distance(self):
+        # Calculate the Euclidean distance between all pairs of points
+        points = np.column_stack((self.x, self.y, self.z))
+        dist_matrix = distance_matrix(points, points)
+        return np.max(dist_matrix)
+    
+    def adjusted_voxel_sum_positive(self):
+        status = []
+        if self.adjusted_voxel_sum_c3.min() < 0: 
+            status.append(False)
+        else: 
+            status.append(True)
+
+        if self.adjusted_voxel_sum_c2.min() < 0: 
+            status.append(False)
+        else: 
+            status.append(True)
+
+        if self.adjusted_voxel_sum_c1.min() < 0: 
+            status.append(False)
+        else: 
+            status.append(True)
+        
+        return status
+    
+    def find_max_x_movement(self):
+        x_cords_array = self.x.values 
+        max_x = np.max(x_cords_array)
+        min_x = np.min(x_cords_array)
+        return max_x - min_x
+    
+    def find_max_y_movement(self):
+        y_cords_array = self.y.values 
+        max_y = np.max(y_cords_array)
+        min_y = np.min(y_cords_array)
+        return max_y - min_y
+    
+    def find_max_z_movement(self):
+        z_cords_array = self.z.values 
+        max_z = np.max(z_cords_array)
+        min_z = np.min(z_cords_array)
+        return max_z - min_z
+
 
 
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
-                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['amplitude', 'c2_peak']):
+                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['amplitude', 'c2_peak'], 
+                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted']):
     '''
     Create tracks from a pandas DataFrame.
 
@@ -88,7 +151,8 @@ def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'tra
             x = group[coords[0]],
             y = group[coords[1]],
             z = group[coords[2]],
-            intensities = group[intensities_col_name].values
+            intensities = group[intensities_col_name].values, 
+            adjusted_voxel_sum = group[adjusted_voxel_sum_col_name].values,
         )
         tracks.append(track)
     return tracks
