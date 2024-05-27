@@ -8,7 +8,7 @@ import os
 
 #DO NOT CHANGE THE CODE BELOW. EXCEPT output_csv_filename
 # This assumes that your notebook is inside 'MULTIPAGE_DASHBOARD', which is at the same level as 'test_data'
-base_dir = os.path.join(os.path.dirname(os.path.abspath("__file__")), '..', 'test_data')
+base_dir = os.path.join(os.path.dirname(os.path.abspath("__file__")), 'Final/test_data')
 zarr_directory = 'zarr_file/all_channels_data'
 zarr_full_path = os.path.join(base_dir, zarr_directory)
 
@@ -23,9 +23,18 @@ filtered_tracks_all_tracks_full_directory = os.path.join(base_dir,filtered_track
 output_csv_directory = 'datasets'
 
 #ONLY NEED TO UPDATE THIS 
-output_csv_filename = 'test_csv.csv'
+output_csv_filename = 'output_csv.csv'
 
 output_csv_full_directory = os.path.join(base_dir,output_csv_directory , output_csv_filename)
+
+# Check if the file exists
+if os.path.isfile(output_csv_full_directory):
+    # Load the file into a DataFrame
+    df = pd.read_csv(output_csv_full_directory)
+else:
+    # Create an empty DataFrame and a file
+    df = pd.DataFrame(columns=['track_id', 'quality', 'details'])
+    df.to_csv(output_csv_full_directory, index=False)
 
 
 track_df = pd.read_pickle(track_df_all_tracks_full_directory)
@@ -33,7 +42,6 @@ filtered_tracks = pd.read_pickle(filtered_tracks_all_tracks_full_directory)
 zarr_arr = zarr.open(store = zarr_full_path, mode = 'r')
 csv_file_path = output_csv_full_directory
 
-df = pd.DataFrame(columns=['track_id', 'quality', 'details'])
 
 # Initialize the Dash app
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)

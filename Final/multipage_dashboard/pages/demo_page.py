@@ -143,7 +143,7 @@ def plot_track_movement(track_id, dataframe = track_df):
 
 # Define the layout for the Demo Page
 layout = html.Div([ 
-    html.H1('Second Page'), 
+    html.H1('Tracks Stats'), 
     html.Div([
     html.Div([
         dcc.Graph(id='track-summary-table'),  # Placeholder for the table
