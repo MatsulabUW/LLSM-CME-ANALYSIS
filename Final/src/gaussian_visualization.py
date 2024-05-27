@@ -1,41 +1,45 @@
-# By Joh Schoeneberg, 2019
 import numpy as np
 
-def visualize_3D_gaussians(image_raw,gaussians):
+def visualize_3D_gaussians(zarr_obj, gaussians_df):
     '''
     This function takes a raw image from which gaussians have been segmented
-    and fitted. And the list of the gaussians to draw them into a new 3D array
-    that can then be visualized or outputted as a tiff.
+    and fitted, and a DataFrame containing the Gaussian parameters to draw them
+    into a new 3D array that can then be visualized or outputted as a TIFF.
     '''
 
-    image_gaussians = np.zeros(image_raw.shape)
-    for gaussian in gaussians:
+    
+    image_gaussians = np.zeros((zarr_obj.shape[2],zarr_obj.shape[3],zarr_obj.shape[4]))
 
-        if(gaussian!=-1):
-            amplitude = 100*gaussian[0]
+    # Replace zero sigma values with 1
+    gaussians_df['sigma_x'] = gaussians_df['sigma_x'].replace(0, 1)
+    gaussians_df['sigma_y'] = gaussians_df['sigma_y'].replace(0, 1)
+    gaussians_df['sigma_z'] = gaussians_df['sigma_z'].replace(0, 1)
+    
+    # Extract Gaussian parameters from the DataFrame
+    amplitudes = gaussians_df['amplitude'].values * 100
+    mu_xs = gaussians_df['mu_x'].values.astype(int)
+    mu_ys = gaussians_df['mu_y'].values.astype(int)
+    mu_zs = gaussians_df['mu_z'].values.astype(int)
+    sigma_xs = gaussians_df['sigma_x'].values
+    sigma_ys = gaussians_df['sigma_y'].values
+    sigma_zs = gaussians_df['sigma_z'].values
 
-            #print(gaussian)
-            ##incorrect values for mu and sigma 
-            mu_x     = int(gaussian[1][0]) 
-            mu_y     = int(gaussian[1][1])
-            mu_z     = int(gaussian[1][2])
-            sigma_x  = int(gaussian[2][0])
-            sigma_y  = int(gaussian[2][1])
-            sigma_z  = int(gaussian[2][2])
+    for amplitude, mu_x, mu_y, mu_z, sigma_x, sigma_y, sigma_z in zip(amplitudes, mu_xs, mu_ys, mu_zs, sigma_xs, sigma_ys, sigma_zs):
+        n_neighbors_x = int(3 * sigma_x) + 1
+        n_neighbors_y = int(3 * sigma_y) + 1
+        n_neighbors_z = int(3 * sigma_z) + 1
 
+        z_range = np.arange(max(0, mu_z - n_neighbors_z), min(image_gaussians.shape[0], mu_z + n_neighbors_z + 1))
+        y_range = np.arange(max(0, mu_y - n_neighbors_y), min(image_gaussians.shape[1], mu_y + n_neighbors_y + 1))
+        x_range = np.arange(max(0, mu_x - n_neighbors_x), min(image_gaussians.shape[2], mu_x + n_neighbors_x + 1))
 
-
-            n_neighbors_x = int(3 * sigma_x ) + 1
-            n_neighbors_y = int(3 * sigma_y ) + 1
-            n_neighbors_z = int(3 * sigma_z ) + 1
-
-            for kx in range(max(0, mu_x - n_neighbors_x), min(image_gaussians.shape[0], mu_x + n_neighbors_x)):
-                for ky in range(max(0, mu_y - n_neighbors_y), min(image_gaussians.shape[1], mu_y + n_neighbors_y)):
-                    for kz in range(max(0, mu_z - n_neighbors_z), min(image_gaussians.shape[2], mu_z + n_neighbors_z)):
-            #                for ky in range(max(0, iy - n_neighbors), min(ngrid, iy + n_neighbors)):
-                        d2 = (kx-mu_x)**2 + (ky-mu_y)**2+ (kz-mu_z)**2
-                        if((2*sigma_x*sigma_y*sigma_z)!=0):
-                            #value = amplitude*np.exp(-d2 / (2*sigma_x*sigma_y*sigma_z))
-                            value = amplitude*np.exp(-(  (kx-mu_x)**2/2*sigma_x  + (ky-mu_y)**2/2*sigma_y + (kz-mu_z)**2/2*sigma_z))
-                        image_gaussians[kx, ky, kz] += value
+        zz, yy, xx = np.meshgrid(z_range, y_range, x_range, indexing='ij')
+        distances = (
+            ((zz - mu_z) ** 2) / (2 * sigma_z ** 2) +
+            ((yy - mu_y) ** 2) / (2 * sigma_y ** 2) +
+            ((xx - mu_x) ** 2) / (2 * sigma_x ** 2)
+        )
+        gaussian_values = amplitude * np.exp(-distances)
+        np.add.at(image_gaussians, (zz, yy, xx), gaussian_values)
+    
     return image_gaussians
