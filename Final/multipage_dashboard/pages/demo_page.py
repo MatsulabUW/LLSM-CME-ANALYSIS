@@ -40,8 +40,8 @@ def create_track_summary_table(track_id = 2, dataframe = filtered_tracks):
             np.round(dataframe[dataframe['track_id'] == track_id]['mean_displacement'].values, 2),
             np.round(dataframe[dataframe['track_id'] == track_id]['mean_z'].values,2),
             np.round(dataframe[dataframe['track_id'] == track_id]['mean_z_displacement'].values,2),
-            dataframe[dataframe['track_id'] == track_id]['dnm2_positive'].values,
-            dataframe[dataframe['track_id'] == track_id]['actin_positive'].values,
+            dataframe[dataframe['track_id'] == track_id]['channel2_positive'].values,
+            dataframe[dataframe['track_id'] == track_id]['channel1_positive'].values,
             dataframe[dataframe['track_id'] == track_id]['membrane_region'].values,
         ]
     }
