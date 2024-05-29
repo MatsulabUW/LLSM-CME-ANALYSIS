@@ -19,13 +19,13 @@ unique_tracks = filtered_tracks['track_id'].unique()
 #select the option to see tracks which are either dynamin positive or actin positive
 def select_type_of_tracks(dataframe, only_dynamin_tracks = False, only_actin_tracks = False, all_positive_tracks = True, both_tracks_positive = False): 
         if only_dynamin_tracks == True: 
-            relevant_tracks = dataframe[(dataframe['dnm2_positive'] == True) & (dataframe['actin_positive'] == False)]['track_id'].values
+            relevant_tracks = dataframe[(dataframe['channel2_positive'] == True) & (dataframe['channel1_positive'] == False)]['track_id'].values
         elif only_actin_tracks == True: 
-            relevant_tracks = dataframe[(dataframe['dnm2_positive'] == False) & (dataframe['actin_positive'] == True)]['track_id'].values
+            relevant_tracks = dataframe[(dataframe['channel2_positive'] == False) & (dataframe['channel1_positive'] == True)]['track_id'].values
         elif all_positive_tracks == True: 
-            relevant_tracks = dataframe[(dataframe['dnm2_positive'] == True) | (dataframe['actin_positive'] == True)]['track_id'].values
+            relevant_tracks = dataframe[(dataframe['channel2_positive'] == True) | (dataframe['channel1_positive'] == True)]['track_id'].values
         elif both_tracks_positive == True: 
-            relevant_tracks = dataframe[(dataframe['dnm2_positive'] == True) & (dataframe['actin_positive'] == True)]['track_id'].values
+            relevant_tracks = dataframe[(dataframe['channel2_positive'] == True) & (dataframe['channel1_positive'] == True)]['track_id'].values
 
         return relevant_tracks
 
@@ -280,10 +280,10 @@ layout = html.Div([
             dcc.Checklist(
                 id='condition-selection',
                 options=[
-                    {'label': 'Only Dynamin Positive Tracks', 'value': 'only_dynamin'},
-                    {'label': 'Actin or Dynamin Positive Tracks', 'value': 'all_positive'}, 
-                    {'label': 'Actin & Dynamin Positive Tracks', 'value': 'both_positive'},
-                    {'label': 'Only Actin Positive Tracks', 'value': 'only_actin'}
+                    {'label': 'Only Channel 2 and Channel 3 Positive Tracks', 'value': 'only_dynamin'},
+                    {'label': 'Channel 3 and Channel 1 or Channel 2 Positive Tracks', 'value': 'all_positive'}, 
+                    {'label': 'All Channels Positive Tracks', 'value': 'both_positive'},
+                    {'label': 'Only Channel 1 and Channel 3 Positive Tracks', 'value': 'only_actin'}
                 ],
                 value=['all_positive'],  # Default selected value
                 style={
@@ -332,6 +332,10 @@ layout = html.Div([
         },
         persistence=True,
     ),
+    html.Button('Previous', id='prev_track', n_clicks=0, style={'display': 'inline-block', 'margin-left': '10px'}),
+    html.Button('Next', id='next_track', n_clicks=0, style={'display': 'inline-block', 'margin-left': '10px'}),
+    html.Br(), 
+
     html.Label('Select the type of feature to display:'),
     dcc.Dropdown(
         id='display_type', 
@@ -444,36 +448,88 @@ html.Div([
 
 
 
+# @callback(
+#     Output('track_number_dropdown', 'options'),
+#     Output('track_number_dropdown', 'value'),
+#     Input('condition-selection', 'value'), 
+#     Input('region-selection', 'value'), 
+#     State('intermediate-value', 'data')
+# )
+# def update_track_dropdown(selected_conditions, selected_regions, int_value):
+#     all_positive_tracks = 'all_positive' in selected_conditions
+#     only_dynamin_tracks = 'only_dynamin' in selected_conditions
+#     only_actin_tracks = 'only_actin' in selected_conditions
+#     both_tracks_positive = 'both_positive' in selected_conditions
+#     only_basal_tracks = 'basal' in selected_regions 
+#     only_apical_tracks = 'apical' in selected_regions 
+#     only_lateral_tracks = 'lateral' in selected_regions 
+#     all_tracks = 'all' in selected_regions
+#     relevant_tracks = select_type_of_tracks(filtered_tracks, only_dynamin_tracks, only_actin_tracks, all_positive_tracks, both_tracks_positive)
+#     final_tracks = select_tracks_region_wise(filtered_tracks, relevant_tracks, only_basal_tracks, only_apical_tracks, only_lateral_tracks, all_tracks)
+#     options = [{'label': str(track_id), 'value': track_id} for track_id in final_tracks]
+#     value = options[0]['value'] if options else None
+    
+#     # Check for the intermediate value and adjust the default value if necessary
+#     if int_value:
+#         try:
+#             temp = json.loads(int_value) 
+#             if 'selected_track_id' in temp and temp['selected_track_id'] in [opt['value'] for opt in options]:
+#                 value = temp['selected_track_id']
+#         except json.JSONDecodeError:
+#             print("Error decoding JSON from intermediate value")
+#     return options, value
+
+
 @callback(
-    Output('track_number_dropdown', 'options'),
-    Output('track_number_dropdown', 'value'),
-    Input('condition-selection', 'value'), 
-    Input('region-selection', 'value'), 
-    State('intermediate-value', 'data')
+    [Output('track_number_dropdown', 'options'),
+     Output('track_number_dropdown', 'value')],
+    [Input('condition-selection', 'value'),
+     Input('region-selection', 'value'),
+     Input('prev_track', 'n_clicks'),
+     Input('next_track', 'n_clicks'),
+     State('track_number_dropdown', 'value'),
+     State('intermediate-value', 'data')]
 )
-def update_track_dropdown(selected_conditions, selected_regions, int_value):
+def update_track_dropdown(selected_conditions, selected_regions, prev_clicks, next_clicks, current_track, int_value):
     all_positive_tracks = 'all_positive' in selected_conditions
     only_dynamin_tracks = 'only_dynamin' in selected_conditions
     only_actin_tracks = 'only_actin' in selected_conditions
     both_tracks_positive = 'both_positive' in selected_conditions
-    only_basal_tracks = 'basal' in selected_regions 
-    only_apical_tracks = 'apical' in selected_regions 
-    only_lateral_tracks = 'lateral' in selected_regions 
+    only_basal_tracks = 'basal' in selected_regions
+    only_apical_tracks = 'apical' in selected_regions
+    only_lateral_tracks = 'lateral' in selected_regions
     all_tracks = 'all' in selected_regions
+
     relevant_tracks = select_type_of_tracks(filtered_tracks, only_dynamin_tracks, only_actin_tracks, all_positive_tracks, both_tracks_positive)
     final_tracks = select_tracks_region_wise(filtered_tracks, relevant_tracks, only_basal_tracks, only_apical_tracks, only_lateral_tracks, all_tracks)
+    final_tracks = list(final_tracks)  # Convert to list
+
     options = [{'label': str(track_id), 'value': track_id} for track_id in final_tracks]
-    value = options[0]['value'] if options else None
-    
-    # Check for the intermediate value and adjust the default value if necessary
-    if int_value:
+
+    if ctx.triggered_id in ['prev_track', 'next_track']:
+        if current_track is not None and current_track in final_tracks:
+            current_index = final_tracks.index(current_track)
+            if ctx.triggered_id == 'prev_track':
+                new_index = max(0, current_index - 1)
+            else:
+                new_index = min(len(final_tracks) - 1, current_index + 1)
+            new_value = final_tracks[new_index]
+        else:
+            new_value = final_tracks[0] if final_tracks else None
+    else:
+        new_value = options[0]['value'] if options else None
+
+    if int_value and not ctx.triggered_id in ['prev_track', 'next_track']:
         try:
-            temp = json.loads(int_value) 
+            temp = json.loads(int_value)
             if 'selected_track_id' in temp and temp['selected_track_id'] in [opt['value'] for opt in options]:
-                value = temp['selected_track_id']
+                new_value = temp['selected_track_id']
         except json.JSONDecodeError:
             print("Error decoding JSON from intermediate value")
-    return options, value
+
+    return options, new_value
+
+
 
 @callback(Output('track_visualization', 'figure'),[Input('display_type', 'value'),Input('track_number_dropdown', 'value')])
 def update_graph(display_type, track_number_dropdown, raw_image = zarr_arr):
@@ -520,10 +576,10 @@ def update_output(n_clicks, detailed_input, track_id, quality):
                 df.loc[df['track_id'] == track_id, ['quality','details']] = [quality, detailed_input]
                 return f'Track {track_id} has been over-written'
             else: 
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=False)
             
             # Save to CSV
-            df.to_csv(csv_file_path, index= True)
+            df.to_csv(csv_file_path, index= False)
             return f'Track {track_id} marked as {quality} and saved.'
         else:
             return 'Please select a track before submitting.'

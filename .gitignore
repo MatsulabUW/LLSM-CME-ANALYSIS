@@ -11,3 +11,5 @@ Final/test_data/zarr_file/all_channels_data
 Final/test_data/zarr_file/C
 .DS_Store.DS_Store
 .DS_Store
+__pycache__/
+*.pyc
