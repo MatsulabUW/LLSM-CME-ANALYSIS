@@ -17,12 +17,34 @@ Lastly, an interactive dashboard is also developed to assist with viewing raw tr
 git clone git@github.com:Mdanishnadeem/Image-Analysis-Tracking.git
 conda create --name cme_pipeline python==3.10
 conda activate cme_pipeline 
+cd Image-Analysis-Tracking
 pip install -r requirements.txt
 ```
 
 ## Dashboard:
 
-![dashboard](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/dashboard.png)
+An interactive dashboard developed on open source packages, allows the user to interact with tracks using different parameters
+
+The user can do the following: 
+1. Select types of track (e.g. Channel 1 and Channel 3 positive)
+2. Select the membrane region of the track (e.g. Apical)
+3. Select the track number available from the above filtering criterion, 
+    a. Select track number from dropdown 
+    b. Go back and forth from the prev and next buttons 
+4. Select the type of 2-D projection for the 3-D image 
+    a. Maximum Intensity Projection 
+    b. Max Z Slice (Z slice with max pixel sum)
+    c. Total Z Sum (Sum across Z slices)
+5. View intensity over time plot from the following options 
+    a. Gaussian Peaks 
+    b. Adjusted Voxel Sum (Adjusted for local background)
+    c. Voxel Sum 
+    d. Peak Pixel Value 
+6. Select track as good or bad and also provide details for why a track is bad 
+7. On the second page detailed track stats and 3-D graph for track movement can be seen 
+
+![dashboard_home](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/home_page.png)
+![dashbord_second](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/second_page.png)
 
 ## Main Functions: 
 The [src](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/tree/main/Final/src) folder contains all the source code for this project. You can explore this folder to gain a more detailed understanding of the project's implementation.
