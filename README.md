@@ -1,10 +1,10 @@
 # 3-D Time-Series Microscopy Image Analysis
 ## Pipeline for time-series microscopy data on Clathrin-Mediated Endocytosis
 
-![main gif](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/main_image.gif)
+![main gif](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/main_image.gif)
 <p align="center">
-  <img src="https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/subplots.png" alt="subplots" width="400"/>
-  <img src="https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/averaged_plots.png" alt="averaged_plots" width="400"/>
+  <img src="https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/subplots.png" alt="subplots" width="400"/>
+  <img src="https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/averaged_plots.png" alt="averaged_plots" width="400"/>
 </p>
 
 ## Overview: 
@@ -63,16 +63,16 @@ The user can do the following:
 6. Select track as good or bad and also provide details for why a track is bad 
 7. On the second page detailed track stats and 3-D graph for track movement can be seen 
 
-![dashboard_home](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/home_page.png)
-![dashbord_second](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/second_page.png)
+![dashboard_home](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/home_page.png)
+![dashbord_second](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/second_page.png)
 
 ## Main Functions: 
-The [src](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/tree/main/Final/src) folder contains all the source code for this project. You can explore this folder to gain a more detailed understanding of the project's implementation.
+The [src](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/tree/main/Final/src) folder contains all the source code for this project. You can explore this folder to gain a more detailed understanding of the project's implementation.
 
 Feel free to browse through the files and directories to learn more about how the project works.
 
 ## How to Run: 
-A detailed guide for the entire project and steps involved can be found in [manual](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/Image%20Analysis%20Pipeline%20Explained.docx)
+A detailed guide for the entire project and steps involved can be found in [manual](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/Image%20Analysis%20Pipeline%20Explained.docx)
 
 
 ## Acknowledgements:
