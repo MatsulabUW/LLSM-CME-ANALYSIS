@@ -28,18 +28,30 @@ An interactive dashboard developed on open source packages, allows the user to i
 The user can do the following: 
 1. Select types of track (e.g. Channel 1 and Channel 3 positive)
 2. Select the membrane region of the track (e.g. Apical)
-3. Select the track number available from the above filtering criterion, 
+3. Select the track number available from the above filtering criterion
+
     a. Select track number from dropdown 
+
     b. Go back and forth from the prev and next buttons 
+
 4. Select the type of 2-D projection for the 3-D image 
+
     a. Maximum Intensity Projection 
+
     b. Max Z Slice (Z slice with max pixel sum)
+
     c. Total Z Sum (Sum across Z slices)
+
 5. View intensity over time plot from the following options 
+
     a. Gaussian Peaks 
+
     b. Adjusted Voxel Sum (Adjusted for local background)
+
     c. Voxel Sum 
+
     d. Peak Pixel Value 
+    
 6. Select track as good or bad and also provide details for why a track is bad 
 7. On the second page detailed track stats and 3-D graph for track movement can be seen 
 
