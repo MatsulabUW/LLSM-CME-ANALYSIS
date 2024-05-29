@@ -13,6 +13,8 @@ Lastly, an interactive dashboard is also developed to assist with viewing raw tr
 
 ## Installation:
 
+Ensure conda is installed before running the following steps. Details for installation can be found [here](https://docs.anaconda.com/free/miniconda/miniconda-install/)
+
 ```bash
 git clone git@github.com:Mdanishnadeem/Image-Analysis-Tracking.git
 conda create --name cme_pipeline python==3.10
@@ -23,7 +25,7 @@ pip install -r requirements.txt
 
 ## Dashboard:
 
-An interactive dashboard developed on open source packages, allows the user to interact with tracks using different parameters
+Dashboard allows the user to interact with tracks using different parameters
 
 The user can do the following: 
 1. Select types of track (e.g. Channel 1 and Channel 3 positive)
@@ -51,7 +53,7 @@ The user can do the following:
     c. Voxel Sum 
 
     d. Peak Pixel Value 
-    
+
 6. Select track as good or bad and also provide details for why a track is bad 
 7. On the second page detailed track stats and 3-D graph for track movement can be seen 
 
@@ -69,7 +71,9 @@ A detailed guide for the entire project and steps involved can be found in [manu
 
 ## Acknowledgements:
 
-This project takes assistance from the following two projects:
+This project takes assistance from the following:
 
 1. [Pylattice](https://github.com/pylattice)
 2. [LapTrack](https://github.com/yfukai/laptrack)
+3. [Napari](https://napari.org/stable/)
+4. [Dash & Plotly](https://dash.plotly.com/)
