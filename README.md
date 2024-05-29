@@ -4,11 +4,13 @@
 ![main gif](https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/main_image.gif)
 
 ## Overview: 
-This project aims to analyze the dynamics of clathrin-mediated endocytosis, with a specific focus on the roles played by dynamin and actin across various membrane domains (apical, basal, and lateral). The dataset comprises 3D time-series data acquired using lattice light sheet microscopy coupled with fluorescence techniques.
+This project aims to analyze the dynamics of clathrin-mediated endocytosis, with a specific focus on the roles played by dynamin and actin across various membrane domains (apical, basal, and lateral). The dataset comprises 3D time-series data acquired using lattice light sheet microscopy (LLSM) coupled with fluorescence techniques.
+
+One of the main goals of the project is to handle massive LLSM movies in real time. To achieve this, the project utilizes Zarr for dynamic memory usage and parallel processing to improve processing speeds and efficiency.
 
 Furthermore, this endeavor seeks to elucidate the distinct roles of proteins such as dynamin and actin in orchestrating endocytic events across the diverse membrane landscapes.
 
-Lastly, an interactive dashboard is also developed to assist with viewing raw tracks (2-D projections) and features of each track for all channels. This would assist in manually identifying valid tracks. 
+Lastly, an interactive dashboard has been developed to assist with viewing raw tracks (2-D projections) and features of each track for all channels. This tool aids in manually identifying valid tracks, thereby enhancing the accuracy and reliability of the analysis.
 
 
 ## Installation:
