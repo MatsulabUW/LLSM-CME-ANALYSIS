@@ -6,6 +6,7 @@
   <img src="https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/subplots.png" alt="subplots" width="400"/>
   <img src="https://github.com/Mdanishnadeem/Image-Analysis-Tracking/blob/main/misc/averaged_plots.png" alt="averaged_plots" width="400"/>
 </p>
+
 ## Overview: 
 This project aims to analyze the dynamics of clathrin-mediated endocytosis, with a specific focus on the roles played by dynamin and actin across various membrane domains (apical, basal, and lateral). The dataset comprises 3D time-series data acquired using lattice light sheet microscopy (LLSM) coupled with fluorescence techniques.
 
