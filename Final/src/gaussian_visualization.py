@@ -1,11 +1,22 @@
 import numpy as np
 
 def visualize_3D_gaussians(zarr_obj, gaussians_df):
-    '''
-    This function takes a raw image from which gaussians have been segmented
-    and fitted, and a DataFrame containing the Gaussian parameters to draw them
-    into a new 3D array that can then be visualized or outputted as a TIFF.
-    '''
+    
+    """
+    Visualizes 3D Gaussians based on the parameters extracted from a DataFrame and overlays them onto a 3D array.
+
+    Parameters
+    ----------
+    zarr_obj : zarr.core.Array
+        The raw 3D image data from which the Gaussians have been segmented and fitted.
+    gaussians_df : pd.DataFrame
+        A DataFrame containing the Gaussian parameters with columns 'amplitude', 'mu_x', 'mu_y', 'mu_z', 'sigma_x', 'sigma_y', 'sigma_z'.
+
+    Returns
+    -------
+    np.ndarray
+        A 3D array with the visualized Gaussians.
+    """
 
     
     image_gaussians = np.zeros((zarr_obj.shape[2],zarr_obj.shape[3],zarr_obj.shape[4]))

@@ -13,7 +13,83 @@ The class below is used to get relevant features of the tracks in an organised m
 '''
 
 class Track:
+    """
+    A class to represent a track in a 3D time-series dataset.
+
+    Attributes
+    ----------
+    track_id : int
+        The unique identifier for the track.
+    frames : pd.Series
+        The series of frame numbers for the track.
+    x : pd.Series
+        The x-coordinates of the track.
+    y : pd.Series
+        The y-coordinates of the track.
+    z : pd.Series
+        The z-coordinates of the track.
+    intensities : np.ndarray
+        The array of intensity values for the track.
+    adjusted_voxel_sum : np.ndarray
+        The array of adjusted voxel sums for the track.
+    track_length : int
+        The length of the track.
+    track_start : int
+        The starting frame of the track.
+    track_end : int
+        The ending frame of the track.
+    peak_intensities : list
+        The list of peak intensity values for each channel.
+    peak_intensity_frames : list
+        The list of frames where peak intensities occur for each channel.
+    mean_displacement_track : float
+        The mean displacement of the track.
+    mean_z_value : float
+        The mean z-coordinate of the track.
+    mean_z_displacement : float
+        The mean displacement in the z-direction.
+    max_radius_from_origin : float
+        The maximum radius from the origin of the track.
+    max_distance_between_two_points : float
+        The maximum distance between any two points in the track.
+    adjusted_voxel_sum_c3 : np.ndarray
+        The adjusted voxel sum for channel 3.
+    adjusted_voxel_sum_c2 : np.ndarray
+        The adjusted voxel sum for channel 2.
+    adjusted_voxel_sum_c1 : np.ndarray
+        The adjusted voxel sum for channel 1.
+    adjusted_voxel_sum : list
+        The list indicating if all channels have positive adjusted voxel sums.
+    max_z_movement : float
+        The maximum movement in the z-direction.
+    max_y_movement : float
+        The maximum movement in the y-direction.
+    max_x_movement : float
+        The maximum movement in the x-direction.
+    """
+
     def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum):
+        """
+        Initializes the Track object with the given parameters.
+
+        Parameters
+        ----------
+        track_id : int
+            The unique identifier for the track.
+        frames : pd.Series
+            The series of frame numbers for the track.
+        x : pd.Series
+            The x-coordinates of the track.
+        y : pd.Series
+            The y-coordinates of the track.
+        z : pd.Series
+            The z-coordinates of the track.
+        intensities : np.ndarray
+            The array of intensity values for the track.
+        adjusted_voxel_sum : np.ndarray
+            The array of adjusted voxel sums for the track.
+        """
+
         self.track_id = track_id
         self.frames = frames
         self.x = x
@@ -39,27 +115,75 @@ class Track:
         self.max_x_movement = self.find_max_x_movement()
         
     def calculate_mean_displacement(self):
+        """
+        Calculates the mean displacement of the track.
+
+        Returns
+        -------
+        float
+            The mean displacement of the track.
+        """
+
         displacement = ((self.x - self.x.shift())**2 + (self.y - self.y.shift())**2 + (self.z - self.z.shift())**2)**0.5
         return displacement.mean()
     
     def calculate_mean_z_displacement(self):
+        """
+        Calculates the mean displacement in the z-direction.
+
+        Returns
+        -------
+        float
+            The mean displacement in the z-direction.
+        """
+
         displacement_z = abs(self.z - self.z.shift())
         return displacement_z.mean()
     
     def print_intensities(self):
+        """
+        Prints the intensity values of the track.
+
+        Returns
+        -------
+        np.ndarray
+            The intensity values of the track.
+        """
         return self.intensities
     
     def calculate_peak_intensities(self):
+        """
+        Calculates the peak intensity values for each channel.
+
+        Returns
+        -------
+        list
+            The list of peak intensity values for each channel.
+        """
+
         peaks_intensitiy_values = []
         for i in range(self.intensities.shape[1]):
             peaks_intensitiy_values.append(max(self.intensities[:,i]))
         return peaks_intensitiy_values
     
     def print_peak_intensities(self):
+        """
+        Prints the peak intensity values for each channel.
+        """
+
         for i in range(self.intensities.shape[1]):
             print('peaks: ', max(self.intensities[:,i]))
     
     def calculate_peak_intensity_frame(self):
+        """
+        Calculates the frames where peak intensities occur for each channel.
+
+        Returns
+        -------
+        list
+            The list of frames where peak intensities occur for each channel.
+        """
+
         peak_frames = []
         for i in range(self.intensities.shape[1]):
             index = np.argmax(self.intensities[:,i])
@@ -67,12 +191,30 @@ class Track:
         return peak_frames
     
     def print_peak_intensity_frame(self):
+        """
+        Prints the frames where peak intensities occur for each channel.
+        """
+
         for i in range(self.intensities.shape[1]):
             index = np.argmax(self.intensities[:,i])
             ans = index + self.track_start
             print(ans)
     
     def max_radius(self):
+        """
+        Calculates the maximum radius from the origin of the track.
+
+        Returns
+        -------
+        float
+            The maximum radius from the origin of the track.
+
+        Raises
+        ------
+        ValueError
+            If the coordinate arrays are empty.
+        """
+
         if len(self.x) == 0 or len(self.y) == 0 or len(self.z) == 0:
             raise ValueError("Coordinate arrays cannot be empty.")
         # Origin is the first frame coordinates (x[0], y[0], z[0])
@@ -82,12 +224,28 @@ class Track:
         return np.max(radii)
     
     def max_distance(self):
+        """
+        Calculates the maximum distance between any two points in the track.
+
+        Returns
+        -------
+        float
+            The maximum distance between any two points in the track.
+        """
         # Calculate the Euclidean distance between all pairs of points
         points = np.column_stack((self.x, self.y, self.z))
         dist_matrix = distance_matrix(points, points)
         return np.max(dist_matrix)
     
     def adjusted_voxel_sum_positive(self):
+        """
+        Checks if all channels have positive adjusted voxel sums.
+
+        Returns
+        -------
+        list
+            The list indicating if all channels have positive adjusted voxel sums.
+        """
         status = []
         if self.adjusted_voxel_sum_c3.min() < 0: 
             status.append(False)
@@ -107,18 +265,42 @@ class Track:
         return status
     
     def find_max_x_movement(self):
+        """
+        Finds the maximum movement in the x-direction.
+
+        Returns
+        -------
+        float
+            The maximum movement in the x-direction.
+        """
         x_cords_array = self.x.values 
         max_x = np.max(x_cords_array)
         min_x = np.min(x_cords_array)
         return max_x - min_x
     
     def find_max_y_movement(self):
+        """
+        Finds the maximum movement in the x-direction.
+
+        Returns
+        -------
+        float
+            The maximum movement in the x-direction.
+        """
         y_cords_array = self.y.values 
         max_y = np.max(y_cords_array)
         min_y = np.min(y_cords_array)
         return max_y - min_y
     
     def find_max_z_movement(self):
+        """
+        Finds the maximum movement in the z-direction.
+
+        Returns
+        -------
+        float
+            The maximum movement in the z-direction.
+        """
         z_cords_array = self.z.values 
         max_z = np.max(z_cords_array)
         min_z = np.min(z_cords_array)
