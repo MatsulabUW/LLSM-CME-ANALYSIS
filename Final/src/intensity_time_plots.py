@@ -363,12 +363,34 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
 def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list, backgroundIntensity: list, 
                                   intensity_to_plot: list, track_id_col_name: str = 'track_id'):
     
-    '''
-    This is a variant of the above function which normalizes the intensity values. 
-    Refer to documentation of createBufferForLifetimeCohort for more details 
-    '''
-    
-    
+    """
+    Normalizes the intensity values for each track and creates a buffer for lifetime cohorts.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The DataFrame containing the track data.
+    listOfTrackIdsAssignedToCohort : list
+        A list of track IDs assigned to the cohort.
+    backgroundIntensity : list
+        A list of background intensity values for each channel.
+    intensity_to_plot : list
+        A list of column names for the intensity values to be plotted.
+    track_id_col_name : str, optional
+        The column name for the track IDs in the DataFrame, by default 'track_id'.
+
+    Returns
+    -------
+    tuple
+        If the length of intensity_to_plot is 2, returns a tuple containing two buffers for the primary and secondary intensities.
+        If the length of intensity_to_plot is 3, returns a tuple containing three buffers for the primary, secondary, and tertiary intensities.
+
+    Raises
+    ------
+    ValueError
+        If the dimensions of intensity_to_plot and backgroundIntensity are not the same.
+        If the length of intensity_to_plot is less than 2.
+    """
     
     trackIdArray = listOfTrackIdsAssignedToCohort
     

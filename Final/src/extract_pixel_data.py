@@ -12,9 +12,47 @@ import os
 
 
 class Extractor:
+
+    """
+    A class to extract voxel data from 3D time-series zarr arrays using specified radii.
+
+    Attributes
+    ----------
+    zarr_obj : zarr.array
+        The zarr array containing 3D time-series data.
+    dataframe : pd.DataFrame
+        The dataframe containing the coordinates for extraction.
+    radii : list
+        The list of fixed radii for extraction in z, y, and x dimensions.
+    frame_col_name : str
+        The column name in the dataframe that specifies the frame number.
+    radi_col_names : list
+        The list of column names in the dataframe specifying variable radii for z, y, and x dimensions.
+    parallel_process : int
+        The number of parallel processes to use for extraction.
+    """
     
     def __init__(self, zarr_obj: zarr.array, dataframe: pd.DataFrame, radii: list, frame_col_name: str, radi_col_name: list, 
                 n_jobs: int):
+        """
+        Initializes the Extractor with the given zarr array, dataframe, radii, and parameters.
+
+        Parameters
+        ----------
+        zarr_obj : zarr.array
+            The zarr array containing 3D time-series data.
+        dataframe : pd.DataFrame
+            The dataframe containing the coordinates for extraction.
+        radii : list
+            The list of fixed radii for extraction in z, y, and x dimensions.
+        frame_col_name : str
+            The column name in the dataframe that specifies the frame number.
+        radi_col_names : list
+            The list of column names in the dataframe specifying variable radii for z, y, and x dimensions.
+        n_jobs : int
+            The number of parallel processes to use for extraction.
+        """
+
         self.zarr_obj = zarr_obj
         self.channels = zarr_obj.shape[1]
         self.frames = zarr_obj.shape[0]
@@ -32,6 +70,23 @@ class Extractor:
 
     #Fixed radi/sigma variant for large files which do not fit in memory 
     def voxel_sum_fixed_bd(self,center_col_names: list,  channel: int):
+        """
+        Extracts voxel sums from a fixed bounding box for each coordinate in the dataframe.
+
+        Parameters
+        ----------
+        center_col_names : list
+            The list of column names in the dataframe that specify the center coordinates.
+        channel : int
+            The channel number to extract data from.
+
+        Returns
+        -------
+        voxel_sum_array : list
+            The list of voxel sums for each coordinate.
+        pixel_values : list
+            The list of pixel values for each coordinate.
+        """
 
         current_channel = channel - 1 
         frames = self.dataframe[self.frame_col_name].nunique()
@@ -90,6 +145,23 @@ class Extractor:
 
     #Variable radi/sigma variant for large files which do not fit in memory 
     def voxel_sum_variable_bd(self ,center_col_names: list, channel: int):
+        """
+        Extracts voxel sums from a variable bounding box for each coordinate in the dataframe.
+
+        Parameters
+        ----------
+        center_col_names : list
+            The list of column names in the dataframe that specify the center coordinates.
+        channel : int
+            The channel number to extract data from.
+
+        Returns
+        -------
+        voxel_sum_array : list
+            The list of voxel sums for each coordinate.
+        pixel_values : list
+            The list of pixel values for each coordinate.
+        """
 
         current_channel = channel - 1 
         frames = self.dataframe[self.frame_col_name].nunique()
@@ -146,7 +218,32 @@ class Extractor:
 
     #Variable radii(sigma values) version for handling bigger files which do not fit in memory 
     def extract_pixels_data_variable_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
-        
+        """
+        Extracts pixel data from a variable bounding box for each coordinate in the dataframe.
+
+        Parameters
+        ----------
+        center_col_names : list
+            The list of column names in the dataframe that specify the center coordinates.
+        channel : int
+            The channel number to extract data from.
+        offset : list, optional
+            The list of offsets to apply to the y and x coordinates (default is [0, 0]).
+
+        Returns
+        -------
+        mean : list
+            The list of mean values of non-zero pixels for each coordinate.
+        maximum : list
+            The list of maximum values of non-zero pixels for each coordinate.
+        minimum : list
+            The list of minimum values of non-zero pixels for each coordinate.
+        pixel_values : list
+            The list of pixel values for each coordinate.
+        max_loc : list
+            The list of coordinates of the maximum values for each coordinate.
+        """
+
         current_channel = channel - 1
         mean = []
         maximum = []
@@ -219,7 +316,32 @@ class Extractor:
     
     #Fixed radii(sigma values) version for handling bigger files which do not fit in memory 
     def extract_pixels_data_fixed_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
-        
+        """
+        Extracts pixel data from a fixed bounding box for each coordinate in the dataframe.
+
+        Parameters
+        ----------
+        center_col_names : list
+            The list of column names in the dataframe that specify the center coordinates.
+        channel : int
+            The channel number to extract data from.
+        offset : list, optional
+            The list of offsets to apply to the y and x coordinates (default is [0, 0]).
+
+        Returns
+        -------
+        mean : list
+            The list of mean values of non-zero pixels for each coordinate.
+        maximum : list
+            The list of maximum values of non-zero pixels for each coordinate.
+        minimum : list
+            The list of minimum values of non-zero pixels for each coordinate.
+        pixel_values : list
+            The list of pixel values for each coordinate.
+        max_loc : list
+            The list of coordinates of the maximum values for each coordinate.
+        """
+         
         current_channel = channel - 1
         mean = []
         maximum = []
@@ -291,7 +413,27 @@ class Extractor:
         return mean,maximum,minimum,pixel_values,max_loc
 
     def gaussian_fitting_single_frame(self, expected_sigma: list, center_col_names: list, frame: int, channel: int, dist_between_spots: int):
-        
+        """
+        Performs Gaussian fitting for a single frame to identify spots and their characteristics.
+
+        Parameters
+        ----------
+        expected_sigma : list
+            The expected sigma values for the Gaussian fitting in z, y, and x dimensions, respectively.
+        center_col_names : list
+            The list of column names in the dataframe that specify the center coordinates.
+        frame : int
+            The frame number to process.
+        channel : int
+            The channel number to extract data from.
+        dist_between_spots : int
+            The minimum distance between spots to be considered for fitting.
+
+        Returns
+        -------
+        pd.DataFrame
+            A dataframe containing the Gaussian fitting parameters including amplitude, mu_x, mu_y, mu_z, sigma_x, sigma_y, and sigma_z.
+        """
         current_channel = channel - 1
         sigmaExpected_x__pixels = expected_sigma[2]
         sigmaExpected_y__pixels = expected_sigma[1]
@@ -418,14 +560,6 @@ class Extractor:
             for frame, result_df in sorted(frame_results):
                 result_df['frame'] = frame  # Add a column with the frame number
                 final_df = pd.concat([final_df, result_df], ignore_index=True)
-            
-            # Construct the filename based on the loop index (time_frame)
-            #filename_pkl = f'all_detections_channel{self.target_channel + 1}.pkl'
-
-            # Construct the full file path by joining the directory and filename
-            #file_path = os.path.join(self.save_directory, filename_pkl)
-
-            #final_df.to_pickle(file_path)
             
             # Return the combined dataframe instead of saving
             return final_df
