@@ -85,20 +85,15 @@ class Detector:
         """
         
         
-        #get the number of frames for our original data for automated analysis for all frames 
-        print('frame number is', frame)
-        
+        #get the number of frames for our original data for automated analysis for all frames         
         single_frame_input = self.zarr_obj[frame,self.target_channel,:,:,:]
-        print(single_frame_input.shape)
         single_frame_input = np.transpose(single_frame_input,axes =(0,2,1))
-        print(single_frame_input.shape)
 
         #define threshold: a value(intensity) for the pixel below which all values would be considered noise and dropped 
         #define min_distance: min_distance/2 is the radius within which we will keep the peak with max value/intensity or 
         #if two peaks have the same value they will be kept 
         
         maximas = peak_local_max_3d(single_frame_input,min_distance=self.dist_between_spots,threshold=self.min_intensity)
-        print('local_maximas detected are', maximas.shape[0])
 
 
         #give the expected std dev/radius of our particles for x,y,z 
@@ -130,7 +125,6 @@ class Detector:
                 accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
                 
         accumulator = np.array(accumulator)
-        print(accumulator.shape)
         df = pd.DataFrame()
         df['amplitude'] = accumulator[:,0]
         df['mu_x'] = accumulator[:,1]

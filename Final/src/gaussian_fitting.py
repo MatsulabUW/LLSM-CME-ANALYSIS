@@ -128,7 +128,7 @@ def fit_multiple_gaussians(image,centers,sigmas,width_parameters):
     for i in range(0,len(centers)):
         if roundedPercent != int(10*i/len(centers)):
             roundedPercent = int(10*i/len(centers))
-            print("{}%({} of {})".format(10*roundedPercent,i,len(centers)))
+            #print("{}%({} of {})".format(10*roundedPercent,i,len(centers)))
 
         one_gaussian, each_dimension_gaussians = fit_gaussian(image, centers[i], sigmas[i], width_parameters)
 
@@ -137,7 +137,7 @@ def fit_multiple_gaussians(image,centers,sigmas,width_parameters):
         individual_gaussians.append(each_dimension_gaussians)
         i += 1
         
-    print("{}%({} of {})".format(100,len(centers),len(centers)))
+    #print("{}%({} of {})".format(100,len(centers),len(centers)))
     return net_gaussians, individual_gaussians
 
 
@@ -187,7 +187,7 @@ def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses):
             absolute_errors.append(temp_absolute_error)
             counter_fit += 1
         else:
-            print('the gaussian did not fit')
+            #print('the gaussian did not fit')
             counter_not_fit += 1 
             index_of_maximas.append(i)
 
