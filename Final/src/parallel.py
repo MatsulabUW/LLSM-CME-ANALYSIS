@@ -109,7 +109,7 @@ class Detector:
         #value here of min_distance   
         half_dist = self.dist_between_spots / 2
         # gaussians, gaussians_popt = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
-        gaussians, gaussians_popt, covariances = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
+        gaussians, gaussians_popt = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
             
         accumulator = []
         for gaussian in gaussians:
@@ -123,10 +123,8 @@ class Detector:
                 sigma_x  = int(gaussian[2][1]) 
                 sigma_y  = int(gaussian[2][2])
                 sigma_z  = int(gaussian[2][0])
-                cov_x    = covariances[0]
-                cov_y    = covariances[1]
-                cov_z    = covariances[2]
-                accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z,cov_x,cov_y,cov_z]))
+ 
+                accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
                 
         accumulator = np.array(accumulator)
         df = pd.DataFrame()
@@ -137,19 +135,12 @@ class Detector:
         df['sigma_x'] = accumulator[:,4]
         df['sigma_y'] = accumulator[:,5]
         df['sigma_z'] = accumulator[:,6]
-
-        df['cov_x'] = accumulator[:,7]
-        df['cov_y'] = accumulator[:,8]
-        df['cov_z'] = accumulator[:,9]
         
-#       mark all the detections with bad fits, based on fitting_threshold in pixels (distance between guess and fit)
-
-        error_list, index_list = check_fitting_error(single_frame_input,maximas,gaussians,sigmas_guesses, mu_threshold=1, sigma_threshold=1.5)
+        # save the errors in the dataframe
+        error_list, index_list = check_fitting_error(single_frame_input,maximas,gaussians,sigmas_guesses)
 
         df['errors'] = error_list
-        # df['bad fits'] = index_list
-        # df['error_mean_mu'] = np.mean(error_list[1])
-        # df['error_mean_sigma'] = np.mean(error_list[2])
+
 
         return df
 

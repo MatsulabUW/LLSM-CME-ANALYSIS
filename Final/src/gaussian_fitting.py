@@ -94,23 +94,7 @@ def fit_gaussian(image, center, sigmas, width_parameters):
         optimal_parameter_one_gaussian.append(center)
         optimal_parameter_one_gaussian.append(sigmas)
 
-        # save mean of covariance matrix
-        covariance_each_dimension = []
-        # covariance_each_dimension.append(np.diag(x_pcov))
-        # covariance_each_dimension.append(np.diag(y_pcov))
-        # covariance_each_dimension.append(np.diag(z_pcov))
-
-        covariance_each_dimension.append(np.mean(np.diag(x_pcov)[1:3]))
-        covariance_each_dimension.append(np.mean(np.diag(y_pcov)[1:3]))
-        covariance_each_dimension.append(np.mean(np.diag(z_pcov)[1:3]))
-       
-
-        # set a threshold for average covariance
-        # if np.mean(np.diag(x_pcov),np.diag(y_pcov),np.diag(z_pcov)) > 0.1:
-            
-        #     return -1, -1
-        # else:
-        return optimal_parameter_one_gaussian, optimal_parameters_each_dimension, covariance_each_dimension
+        return optimal_parameter_one_gaussian, optimal_parameters_each_dimension
 
     except:
         return -1, -1
@@ -147,7 +131,7 @@ def fit_multiple_gaussians(image,centers,sigmas,width_parameters):
             #print("{}%({} of {})".format(10*roundedPercent,i,len(centers)))
 
         # one_gaussian, each_dimension_gaussians = fit_gaussian(image, centers[i], sigmas[i], width_parameters)
-        one_gaussian, each_dimension_gaussians, covariance_each_gaussian = fit_gaussian(image, centers[i], sigmas[i], width_parameters)
+        one_gaussian, each_dimension_gaussians = fit_gaussian(image, centers[i], sigmas[i], width_parameters)
 
         net_gaussians.append(one_gaussian)
 
@@ -155,11 +139,11 @@ def fit_multiple_gaussians(image,centers,sigmas,width_parameters):
         i += 1
         
     #print("{}%({} of {})".format(100,len(centers),len(centers)))
-    return net_gaussians, individual_gaussians, covariance_each_gaussian
+    return net_gaussians, individual_gaussians
 
 
 
-def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses, mu_threshold, sigma_threshold):
+def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses):
     """
     Checks the fitting error for the Gaussian fittings.
 
@@ -201,15 +185,8 @@ def check_fitting_error(image,maximas,net_gaussians,sigmas_guesses, mu_threshold
             temp_absolute_error.append(mean_absolute_error_mean)
             temp_absolute_error.append(mean_absolute_error_sigmas)
 
-            # set a threshold for the mean absolute error: 
-
             absolute_errors.append(temp_absolute_error)
-            if np.mean(mean_absolute_error_mean) > mu_threshold or np.mean(mean_absolute_error_sigmas) > sigma_threshold:
-                #print('the gaussian did not fit')
-                counter_not_fit += 1
-                index_of_maximas.append(i)
-            else:
-                counter_fit += 1
+            counter_fit += 1
             
         else:
             #print('the gaussian did not fit')
