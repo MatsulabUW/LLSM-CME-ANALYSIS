@@ -488,8 +488,6 @@ def plot_z_sum_bd(zarr_array: zarr.array):
             
     for frame in times_to_plot:
         c1_raw_frame = c1_raw[frame,0,:,:,:]
-        print(c1_raw_frame.shape)
-        print(f'frame is {frame}')
         # Initialize an empty list to store the sum of pixel values for each z value
         sum_of_pixels = []
         # Iterate over the z-axis of the 3D numpy array
