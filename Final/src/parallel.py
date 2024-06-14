@@ -108,6 +108,7 @@ class Detector:
         #last parameter in the fit_multiple_gaussians is similar to min_distance above, we should give half of the 
         #value here of min_distance   
         half_dist = self.dist_between_spots / 2
+        # gaussians, gaussians_popt = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
         gaussians, gaussians_popt = fit_multiple_gaussians(single_frame_input,maximas,sigmas_guesses,half_dist)
             
         accumulator = []
@@ -122,6 +123,7 @@ class Detector:
                 sigma_x  = int(gaussian[2][1]) 
                 sigma_y  = int(gaussian[2][2])
                 sigma_z  = int(gaussian[2][0])
+ 
                 accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
                 
         accumulator = np.array(accumulator)
@@ -134,7 +136,11 @@ class Detector:
         df['sigma_y'] = accumulator[:,5]
         df['sigma_z'] = accumulator[:,6]
         
+        # save the errors in the dataframe
         error_list, index_list = check_fitting_error(single_frame_input,maximas,gaussians,sigmas_guesses)
+
+        df['errors'] = error_list
+
 
         return df
 
