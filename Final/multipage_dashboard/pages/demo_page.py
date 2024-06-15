@@ -11,7 +11,7 @@ import os
 
 
 # Correctly obtain the path of the current script file
-base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'test_data')
+base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'movie_data')
 
 track_df_directory = 'datasets'
 track_df_file_name = 'track_df_cleaned_final_full.pkl'
