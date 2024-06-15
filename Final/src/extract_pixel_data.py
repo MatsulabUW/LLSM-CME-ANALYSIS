@@ -101,7 +101,6 @@ class Extractor:
         radius_x = self.radii[2]
         
         for frame in range(frames): 
-            print(f'current frame is {frame}')
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -125,7 +124,6 @@ class Extractor:
 
                 # Extract relevant pixels
                 extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
-                #print('shape of extracted pixels is ', extracted_pixels.shape)
 
                 # Exclude pixels with value 0 before calculating mean
                 non_zero_pixels = extracted_pixels[extracted_pixels != 0]
@@ -172,7 +170,6 @@ class Extractor:
         pixel_values = []
         
         for frame in range(frames): 
-            print(f'current frame is {frame}')
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -198,7 +195,6 @@ class Extractor:
 
                 # Extract relevant pixels
                 extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
-                #print('shape of extracted pixels is ', extracted_pixels.shape)
 
                 # Exclude pixels with value 0 before calculating mean
                 non_zero_pixels = extracted_pixels[extracted_pixels != 0]
@@ -257,12 +253,10 @@ class Extractor:
         
         
         for frame in range(frames):
-            print(f'current frame number is {frame}')
             current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
             
             for i in range(len(current_df)):
-                #print('current coordinates are: ', coords)
                 z = current_df.loc[i, center_col_names[0]]
                 y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
                 x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
@@ -358,12 +352,10 @@ class Extractor:
         
         
         for frame in range(frames):
-            print(f'current frame number is {frame}')
             current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
             
             for i in range(len(current_df)):
-                #print('current coordinates are: ', coords)
                 z = current_df.loc[i, center_col_names[0]]
                 y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
                 x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
@@ -481,7 +473,6 @@ class Extractor:
 
                 
         accumulator = np.array(accumulator)
-        print(accumulator.shape)
         df = pd.DataFrame()
         df['amplitude'] = accumulator[:,0]
         df['mu_x'] = accumulator[:,1]
@@ -590,7 +581,6 @@ class Extractor:
         max_radius_x = self.radii[2] + background_radius[2]
         
         for frame in range(frames): 
-            print(f'current frame is {frame}')
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -624,7 +614,6 @@ class Extractor:
 
                 # Extract relevant pixels for the smaller patch
                 extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
-                #print('shape of extracted pixels is ', extracted_pixels.shape)
 
                 # Extract relevant pixels for the larger patch
                 extracted_pixels_max = current_image[max_z_start:max_z_end, max_y_start:max_y_end, max_x_start:max_x_end]
@@ -659,14 +648,9 @@ class Extractor:
                 
                 #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
                 area_small = non_zero_pixels.shape[0]
-                #print(f'area_small {area_small}')
                 area_large = non_zero_pixels_max.shape[0]
-                #print(f'area_large {area_large}')
 
-                #print(f'voxel sum small patch {voxel_sum}')
-                #print(f'voxel sum larger patch {voxel_sum_max}')
                 background_adjusted_voxel_sum = voxel_sum - ((voxel_sum_max - voxel_sum) * (area_small/ (area_large - area_small)))
-                #print(f'background adjusted sum {background_adjusted_voxel_sum}')
                 adjusted_voxel_sum.append(background_adjusted_voxel_sum)
             
         return voxel_sum_array,pixel_values, adjusted_voxel_sum
