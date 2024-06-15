@@ -8,7 +8,7 @@ import os
 
 #DO NOT CHANGE THE CODE BELOW. EXCEPT output_csv_filename
 # This assumes that your notebook is inside 'MULTIPAGE_DASHBOARD', which is at the same level as 'test_data'
-base_dir = os.path.join(os.path.dirname(os.path.abspath("__file__")), 'Final/test_data')
+base_dir = os.path.join(os.path.dirname(os.path.abspath("__file__")), 'Final/movie_data')
 zarr_directory = 'zarr_file/all_channels_data'
 zarr_full_path = os.path.join(base_dir, zarr_directory)
 
