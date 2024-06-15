@@ -22,7 +22,17 @@ Lastly, an interactive dashboard has been developed to assist with viewing raw t
 Ensure conda is installed before running the following steps. Details for installation can be found [here](https://docs.anaconda.com/free/miniconda/miniconda-install/)
 
 ```bash
-git clone git@github.com:Mdanishnadeem/LLSM-CME-ANALYSIS.git
+git clone git@github.com:MatsulabUW/LLSM-CME-ANALYSIS.git
+conda create --name cme_pipeline python==3.10
+conda activate cme_pipeline 
+cd LLSM-CME-ANALYSIS
+pip install -r requirements.txt
+```
+
+If you do not have ssh configured you can download the repository using https
+
+```bash
+git clone https://github.com/MatsulabUW/LLSM-CME-ANALYSIS.git
 conda create --name cme_pipeline python==3.10
 conda activate cme_pipeline 
 cd LLSM-CME-ANALYSIS
