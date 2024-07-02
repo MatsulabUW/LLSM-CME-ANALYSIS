@@ -442,7 +442,13 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
             p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
             s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
             t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
-            maxIdx = np.argmax(t_intensity)
+
+            # align by peak of secondary channel
+            maxIdx = np.argmax(s_intensity)
+
+            # align by peak of tertiary channel
+            # maxIdx = np.argmax(t_intensity)
+
             p_maxIntensity = np.nanmax(p_intensity)
             s_maxIntensity = np.nanmax(s_intensity)
             t_maxIntensity = np.nanmax(t_intensity)
