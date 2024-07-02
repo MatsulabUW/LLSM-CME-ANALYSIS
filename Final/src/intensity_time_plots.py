@@ -363,6 +363,7 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
     plt.title(graph_title)
     plt.legend(fontsize=6)
     
+    plt.xlim(-5,200)
 
 
 
