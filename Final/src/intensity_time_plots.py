@@ -212,13 +212,19 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
 
         p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
         s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
-        
+
+        # p_buffer = np.full(( len(trackIdArray),bufferSize), np.nan ,dtype=float)
+        # s_buffer = np.full(( len(trackIdArray),bufferSize), np.nan,dtype=float)
+
         counter = 0
         
         for trackId in trackIdArray:
             track = dataframe[dataframe[track_id_col_name] == trackId]
             p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
             s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+
+            # criterion for alignment is the peak of the secondary channel
+
             maxIdx = np.argmax(s_intensity) # was s_intensity before
         
             for i in range(0,len(track)):
@@ -238,6 +244,11 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
         s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
         t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
         
+        # p_buffer = np.full(( len(trackIdArray),bufferSize), np.nan,dtype=float)
+        # s_buffer = np.full(( len(trackIdArray),bufferSize), np.nan,dtype=float)
+        # t_buffer = np.full(( len(trackIdArray),bufferSize), np.nan,dtype=float)
+        
+
         counter = 0
         
         for trackId in trackIdArray:
@@ -245,7 +256,12 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
             p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
             s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
             t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
-            maxIdx = np.argmax(t_intensity)
+
+            # align by secondary channel peak intensity
+            maxIdx = np.argmax(s_intensity)
+            
+            # align by third channel peak intensity
+            # maxIdx = np.argmax(t_intensity)
 
             
         
@@ -314,6 +330,10 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
         s_buffer = buffers[1]
         p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
         s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
+
+        # p_buffer_average = np.nanmean(p_buffer,axis=0)-np.min(np.nanmin(p_buffer,axis=0))
+        # s_buffer_average = np.nanmean(s_buffer,axis=0)-np.min(np.nanmin(s_buffer,axis=0))
+
         p_buffer_std = np.nanstd(p_buffer,axis=0)
         s_buffer_std = np.nanstd(s_buffer,axis=0)
         time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
@@ -333,6 +353,19 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
         p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
         s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
         t_buffer_average = np.nanmean(t_buffer,axis=0)-background_intensity[2]
+
+        # p_buffer_average = np.nanmean(p_buffer,axis=0)-np.min(np.nanmin(p_buffer,axis=1))
+        # s_buffer_average = np.nanmean(s_buffer,axis=0)-np.min(np.nanmin(s_buffer,axis=1))
+        # t_buffer_average = np.nanmean(t_buffer,axis=0)-np.min(np.nanmin(t_buffer,axis=1))
+
+        # p_buffer_average = np.nanmean(p_buffer - np.nanmin(p_buffer, axis=1, keepdims=True), axis=0)
+        # s_buffer_average = np.nanmean(s_buffer - np.nanmin(s_buffer, axis=1, keepdims=True), axis=0)
+        # t_buffer_average = np.nanmean(t_buffer - np.nanmin(t_buffer, axis=1, keepdims=True), axis=0)
+
+        # p_buffer_average = np.nanmean(p_buffer-(np.nanmin(p_buffer,axis=1)),axis=0)
+        # s_buffer_average = np.nanmean(s_buffer-(np.nanmin(s_buffer,axis=1)),axis=0)
+        # t_buffer_average = np.nanmean(t_buffer-(np.nanmin(t_buffer,axis=1)),axis=0)
+
         p_buffer_std = np.nanstd(p_buffer,axis=0)
         s_buffer_std = np.nanstd(s_buffer,axis=0)
         t_buffer_std = np.nanstd(t_buffer,axis=0)
@@ -356,6 +389,7 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
     plt.ylabel(axis_labels[1])
     plt.title(graph_title)
     plt.legend(fontsize=6)
+    # plt.xlim(0, )
     
 
 
