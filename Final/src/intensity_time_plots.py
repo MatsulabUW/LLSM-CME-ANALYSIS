@@ -14,7 +14,7 @@ def filter_track_ids_by_length_ranges(dataframe: pd.DataFrame, track_length_buck
     will be assigned to a cohort. Both the lower and upper limit are inclusive 
     3. track_id_col_name: type(str), the column name which contains the frame number. Default value: 'track_id'
     4. track_length_col_name: type(str), the column name which contains the length of the track. Default value: 'track_length'
-
+    
     Returns: 
     1. track_id_arrays: type(list), returns a 2-D list which contains track_ids for each bucket
     '''
@@ -76,7 +76,7 @@ def random_track_ids(dataframe: pd.DataFrame, desired_length: list, track_length
     
 def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, track_id_col_name: str, 
                        frame_col_name: str, intensity_to_plot: list, channels_to_plot: int, legend_values: list = ['Channel 3', 'Channel 2', 'Channel 1'], 
-                       line_colors: list = ['red', 'green', 'blue'], graph_title = 'Voxel Sum'):
+                       line_colors: list = ['red', 'green', 'blue'], graph_title = 'Intensity', normalized: bool = False):
     
     '''
     
@@ -95,7 +95,8 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     6. legend_values: type(list), labels for the legend. Must be in line with intensity_to_plot list. The channel that is first in intensity_to_plot
     must also appear first in legend labels. 
     7. line_colors: type(list), colors for the intensity_to_plot lines. line_colors[0] will be the color for intensity_to_plot[0] and so on. 
-    
+    8. normalized: type(bool), if the intensity values are normalized. Default value: False
+
     Output: 
     1. Returns the array of primary channel tracks aligned with respect to secondary channel peaks
     2. Returns the array of secondary channel tracks where tracks are aligned with all peaks of tracks being on 
@@ -121,42 +122,59 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
         # Set x-axis range from 1 to 20
         x_range = np.arange(1, 21)
 
-        # Plot c2_amp and c3_amp on the same subplot
+        # Plot intensities on the same subplot
         row = i // num_cols
         col = i % num_cols
         #length = filtered_df[filtered_df['track_id'] == track_id]['track_length'].values
         length = track_data.shape[0]
-        if channels_to_plot == 2:
-            min0 = track_data[intensity_to_plot[0]].min()
-            min1 = track_data[intensity_to_plot[1]].min()
-            track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
-            track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
-            line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
-            line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1], color = line_colors[1])
-        else: 
-            min0 = track_data[intensity_to_plot[0]].min()
-            min1 = track_data[intensity_to_plot[1]].min()
-            min2 = track_data[intensity_to_plot[2]].min()
-            track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
-            track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
-            track_data[intensity_to_plot[2]] = track_data[intensity_to_plot[2]] - min2
-            line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
-            line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1],  color = line_colors[1])
-            line3, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[2]], label=intensity_to_plot[2], color = line_colors[2])
+
+        lines = []
+        for i in range(channels_to_plot):
+            min_val = track_data[intensity_to_plot[i]].min()
+            track_data[intensity_to_plot[i]] -= min_val
+            max_val = track_data[intensity_to_plot[i]].max()          
+
+            # normalize by max_intensity
+            if normalized:  
+                track_data[intensity_to_plot[i]] /= max_val
+            line, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[i]], label=intensity_to_plot[i], color=line_colors[i])
+            lines.append(line)
+
+        # if channels_to_plot == 2:
+        #     min0 = track_data[intensity_to_plot[0]].min()
+        #     min1 = track_data[intensity_to_plot[1]].min()
+        #     track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
+        #     track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
+        #     line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
+        #     line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1], color = line_colors[1])
+        # else: 
+        #     min0 = track_data[intensity_to_plot[0]].min()
+        #     min1 = track_data[intensity_to_plot[1]].min()
+        #     min2 = track_data[intensity_to_plot[2]].min()
+        #     track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
+        #     track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
+        #     track_data[intensity_to_plot[2]] = track_data[intensity_to_plot[2]] - min2
+        #     line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
+        #     line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1],  color = line_colors[1])
+        #     line3, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[2]], label=intensity_to_plot[2], color = line_colors[2])
         axes[row, col].set_title(f'Track {track_id}, length {length}')
         axes[row, col].set_xlabel('Frame')
-        axes[row, col].set_ylabel('Amplitude')
+        axes[row, col].set_ylabel('Intensity')
         #axes[row, col].legend()
 
     fig.suptitle(f'{graph_title} over time', fontsize = 22, fontweight = 'bold')
-    if (channels_to_plot == 2):
-        # Set a single legend for all subplots
-        handles.extend([line1, line2])
-        labels.extend([legend_values[0], legend_values[1]])
-    else: 
-        # Set a single legend for all subplots
-        handles.extend([line1, line2, line3])
-        labels.extend([legend_values[0], legend_values[1], legend_values[2]])
+
+    for i in range(channels_to_plot):
+        handles.append(lines[i])
+        labels.append(legend_values[i])
+    # if (channels_to_plot == 2):
+    #     # Set a single legend for all subplots
+    #     handles.extend([line1, line2])
+    #     labels.extend([legend_values[0], legend_values[1]])
+    # else: 
+    #     # Set a single legend for all subplots
+    #     handles.extend([line1, line2, line3])
+    #     labels.extend([legend_values[0], legend_values[1], legend_values[2]])
         
     # Set a single legend for all subplots
     fig.legend(handles, labels, loc='upper right', ncol=channels_to_plot, fontsize=18)
