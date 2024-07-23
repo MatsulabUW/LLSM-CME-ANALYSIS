@@ -42,18 +42,21 @@ def select_tracks_region_wise(dataframe, tracks, only_basal, only_apical, only_l
     
     return updated_tracks
 
-def select_type_of_intensity(type, voxel_sum_col_names = ['c3_voxel_sum', 'c2_voxel_sum', 'c1_voxel_sum'], 
+def select_type_of_intensity(type,
                              adjusted_voxel_sum_col_names = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted'], 
-                             gaussian_col_names = ['c3_gaussian_amp', 'c2_gaussian_amp', 'c1_gaussian_amp'], 
-                             peak_col_names = ['c3_peak_amp', 'c2_peak_amp', 'c1_peak_amp']): 
-    if type == 'Adjusted Voxel Sum': 
+                             voxel_sum_col_names = ['c3_voxel_sum', 'c2_voxel_sum', 'c1_voxel_sum'], 
+                             mean_col_names = ['c3_peak_mean', 'c2_peak_mean', 'c1_peak_mean'],
+                             peak_col_names = ['c3_peak_max', 'c2_peak_max', 'c1_peak_max']): 
+    
+    if type == 'Background subtracted sum': 
         return adjusted_voxel_sum_col_names
-    elif type == 'Voxel Sum': 
+    elif type == 'Sum Intensity': 
         return voxel_sum_col_names
-    elif type == 'Gaussian Peaks': 
-        return gaussian_col_names
-    elif type == 'Peak Intensity': 
+    elif type == 'Max Intensity': 
         return peak_col_names
+    elif type == 'Mean Intensity': 
+        return mean_col_names
+
 
 def max_z_track_visualisation(track_of_interest,zarr_array,main_tracking_df, channel):
     
@@ -65,7 +68,7 @@ def max_z_track_visualisation(track_of_interest,zarr_array,main_tracking_df, cha
     
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         sigma_z = 4
         sigma_y = 2
         sigma_x = 2
@@ -104,7 +107,7 @@ def total_sum_track_visualisation(track_of_interest,zarr_array,main_tracking_df,
 
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         #sigma_z, sigma_y, sigma_x = track['sigma_z'], track['sigma_y'], track['sigma_x']
         sigma_z = 4
         sigma_y = 2
@@ -141,7 +144,7 @@ def max_intensity_projection_track_visualisation(track_of_interest,zarr_array,ma
 
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         #sigma_z, sigma_y, sigma_x = track['sigma_z'], track['sigma_y'], track['sigma_x']
         sigma_z = 4
         sigma_y = 2
@@ -194,24 +197,42 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
     elif plot_type == 'total_z_sum':      
         result_array = total_sum_track_visualisation(track_number,raw_image,main_tracking_df, channel)
 
+    sigma_z = 4
+    sigma_y = 2
+    sigma_x = 2
+
 
     length_of_track = len(result_array)
     # Set the number of rows and columns for subplots
     num_cols = 7
     num_rows = length_of_track // num_cols + 1
-    
-    unique_tracks = main_tracking_df[main_tracking_df['track_id'] == track_number]['frame'].unique()
-    subplot_titles_tuple = tuple(f'frame_{i}' for i in unique_tracks)
 
-    fig = make_subplots(rows=num_rows, cols=7, subplot_titles = subplot_titles_tuple, x_title = 'Frames', 
-                        y_title = 'Intensity', row_titles = None, column_titles = None)
-    
-    
-    for i in range(length_of_track):
-        fig.layout.annotations[i]["font"] = {'size': 10, 'color':'black'}
+    box_x_size_array =  [sigma_x*2+5] * num_cols
+    box_y_size_array =  [sigma_y*2+5] * num_rows
 
-    fig.layout.annotations[length_of_track]["font"] = {'size': 15, 'color':'black'}
-    fig.layout.annotations[length_of_track+1]["font"] = {'size': 15, 'color':'black'}
+    
+    # unique_tracks = main_tracking_df[main_tracking_df['track_id'] == track_number]['frame'].unique()
+    # subplot_titles_tuple = tuple(f'frame_{i}' for i in unique_tracks)
+
+    # fig = make_subplots(rows=num_rows, cols=7, subplot_titles = subplot_titles_tuple, x_title = 'Frames', 
+    #                     y_title = 'Intensity', row_titles = None, column_titles = None)
+    
+
+    fig = make_subplots(rows=num_rows, cols=num_cols, x_title = 'Frames', 
+                        y_title = 'Intensity', shared_xaxes = 'all', shared_yaxes = 'all',
+                        column_widths=box_x_size_array, row_heights=box_y_size_array, horizontal_spacing=0.01, vertical_spacing=0.01)
+
+    fig.update_xaxes(scaleanchor = "y", scaleratio = 1)
+    # fig.update_yaxes(scaleanchor = "x", scaleratio = 1)
+
+
+    # for i in range(length_of_track):
+    #     fig.layout.annotations[i]["font"] = {'size': 10, 'color':'black'}
+
+
+
+    # fig.layout.annotations[length_of_track]["font"] = {'size': 15, 'color':'black'}
+    # fig.layout.annotations[length_of_track+1]["font"] = {'size': 15, 'color':'black'}
 
     r = 1
     c = 1
@@ -220,6 +241,7 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
         fig.add_trace(image.data[0], row = r, col = c)
         fig.update_xaxes(showticklabels=False, row=r, col=c)
         fig.update_yaxes(showticklabels=False, row=r, col=c)
+
         if i != 0 and (i+1) % (num_cols) == 0: 
             r = r + 1
             c = 1
@@ -233,18 +255,31 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
     return fig
 
 #Line chart plot
-def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking_df = track_df, type_of_intensity = 'Adjusted Voxel Sum'):
+def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking_df = track_df, type_of_intensity = 'Background subtracted sum'):
     current_track_df = main_tracking_df[main_tracking_df['track_id'] == track_of_interest]
     intensity_col_names = select_type_of_intensity(type_of_intensity)
 
     # Create Line plot
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[0]], name = 'Channel 3',
-                 line = dict(color = 'red', width = 4)))
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[1]],name = 'Channel 2', 
-                            line=dict(color='green', width = 4)))
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[2]],name = 'Channel 1', 
+    # normalize here
+    min_intensity_0 = np.min(current_track_df[intensity_col_names[0]])
+    max_intensity_0 = np.max(current_track_df[intensity_col_names[0]])
+
+    min_intensity_1 = np.min(current_track_df[intensity_col_names[1]])
+    max_intensity_1 = np.max(current_track_df[intensity_col_names[1]])
+
+    min_intensity_2 = np.min(current_track_df[intensity_col_names[2]])
+    max_intensity_2 = np.max(current_track_df[intensity_col_names[2]])
+
+    # normalized by min and max intensity
+
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[0]]-min_intensity_0)/(max_intensity_0-min_intensity_0), name = 'Channel 3',
+                 line = dict(color = 'magenta', width = 4)))
+
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[1]]-min_intensity_1)/(max_intensity_1-min_intensity_1),name = 'Channel 2', 
+                            line=dict(color='lime', width = 4)))
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[2]]-min_intensity_2)/(max_intensity_2-min_intensity_2),name = 'Channel 1', 
                             line=dict(color='blue', width = 4)))
 
     # Edit the layout
@@ -264,7 +299,7 @@ layout = html.Div([
         "text-align": "center",
         "margin-top": "20px",
         "color": "white",  # A deep blue tone
-        "background-color": "#FF3333",  # A soft off-white background
+        "background-color": "#FFCCCB",  # background color
         "border-radius": "10px",
         "padding": "20px 20px",
         "box-shadow": "0 4px 8px rgba(0, 0, 0, 0.06)",  # Lighter shadow for subtlety
@@ -358,12 +393,13 @@ layout = html.Div([
     dcc.Dropdown(
         id='intensity_type',
         options=[
-            {'label': 'Voxel Sum', 'value': 'Voxel Sum'},
-            {'label': 'Adjusted Voxel Sum', 'value': 'Adjusted Voxel Sum'},
-            {'label': 'Peak Intensity', 'value': 'Peak Intensity'},
-            {'label': 'Gaussian Peaks', 'value': 'Gaussian Peaks'}
+            {'label': 'Background subtracted sum', 'value': 'Background subtracted sum'},
+            {'label': 'Sum Intensity', 'value': 'Sum Intensity'},            
+            {'label': 'Max Intensity', 'value': 'Max Intensity'},
+            {'label': 'Mean Intensity', 'value': 'Mean Intensity'}
+            # {'label': 'Gaussian Peaks', 'value': 'Gaussian Peaks'}
         ],
-        value='Adjusted Voxel Sum',  # Default selected value
+        value='Background subtracted sum',  # Default selected value
         style={
             'width': '100%',
             'border': '1px solid #ccc',

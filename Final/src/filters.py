@@ -6,7 +6,8 @@ from matplotlib.ticker import FuncFormatter
 from aicsimageio import AICSImage
 import zarr
 from scipy.spatial import distance_matrix
-
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
 
 '''
 The class below is used to get relevant features of the tracks in an organised manner. More features can be added in this class
@@ -307,10 +308,79 @@ class Track:
         return max_z - min_z
 
 
+    def cores_to_use(self):
+        """
+        Determines the optimal number of cores to use for parallel processing.
+        
+        Returns:
+            int: The number of cores to use. Raises a ValueError if the specified number of cores exceeds available cores.
+        """
 
+        if self.parallel_process == -1:
+            return os.cpu_count() - 1
+        elif self.parallel_process > os.cpu_count():
+            raise ValueError(f"Error: You specified {self.parallel_process} cores, but only {os.cpu_count()} cores are available.")
+        else: 
+            return self.parallel_process
+            
+    # def run_parallel_frame_processing(self, expected_sigma: list, center_col_name: list,
+    #                                 dist_between_spots: int, channel: int,  max_frames: int = 2, all_frames: bool = False):
+    #     """
+    #     Processes multiple frames in parallel using the single_frame_segmentation method and returns the combined results.
+        
+    #     Parameters:
+    #         max_frames (int, optional): The maximum number of frames to process. Defaults to 2.
+    #         all_frames (bool, optional): If true all the frames will be processed regardless of max_frames
+            
+    #     Returns:
+    #         DataFrame: A pandas DataFrame containing the combined analysis results from all processed frames.
+    #     """
+
+    #     if all_frames == True: 
+    #         frames_to_process = self.dataframe[self.frame_col_name].nunique()
+    #     else:
+    #         frames_to_process = max_frames
+
+    #     num_of_parallel_process = self.cores_to_use()
+    #     futures_to_frame = {}
+
+    #     # Initialize a ProcessPoolExecutor
+    #     with ProcessPoolExecutor(max_workers = num_of_parallel_process) as executor:
+        
+    #         # Submit tasks for each frame to be processed in parallel
+    #         for frame in range(frames_to_process):
+    #             future = executor.submit(self.create_tracks_from_dataframe, self, df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
+    #                              coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
+    #                              adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted'])
+    #             futures_to_frame[future] = frame  # Map future to frame number
+
+            
+    #         frame_results = []
+    #         # Use tqdm to show progress as tasks complete
+    #         for future in tqdm(as_completed(futures_to_frame), total=frames_to_process, desc="Processing frames"):
+    #             frame = futures_to_frame[future]
+    #             try:
+    #                 # If you need the result for anything, or to catch exceptions:
+    #                 result = future.result()
+    #                 if result is not None: 
+    #                     # Append a tuple of (frame, result) to frame_results
+    #                     frame_results.append((frame, result))
+    #             except Exception as e:
+    #                 # Handle exceptions (if any) from your processed function
+    #                 print(f"Error processing frame: {e}")
+            
+    #         # Initialize an empty DataFrame
+    #         final_df = pd.DataFrame()
+
+    #         for frame, result_df in sorted(frame_results):
+    #             result_df['frame'] = frame  # Add a column with the frame number
+    #             final_df = pd.concat([final_df, result_df], ignore_index=True)
+            
+    #         # Return the combined dataframe instead of saving
+    #         return final_df
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
-                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['amplitude', 'c2_peak'], 
+                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
                                  adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted']):
     '''
     Create tracks from a pandas DataFrame.

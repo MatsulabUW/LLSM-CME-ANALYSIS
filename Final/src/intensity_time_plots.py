@@ -14,7 +14,7 @@ def filter_track_ids_by_length_ranges(dataframe: pd.DataFrame, track_length_buck
     will be assigned to a cohort. Both the lower and upper limit are inclusive 
     3. track_id_col_name: type(str), the column name which contains the frame number. Default value: 'track_id'
     4. track_length_col_name: type(str), the column name which contains the length of the track. Default value: 'track_length'
-
+    
     Returns: 
     1. track_id_arrays: type(list), returns a 2-D list which contains track_ids for each bucket
     '''
@@ -76,7 +76,7 @@ def random_track_ids(dataframe: pd.DataFrame, desired_length: list, track_length
     
 def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, track_id_col_name: str, 
                        frame_col_name: str, intensity_to_plot: list, channels_to_plot: int, legend_values: list = ['Channel 3', 'Channel 2', 'Channel 1'], 
-                       line_colors: list = ['red', 'green', 'blue'], graph_title = 'Voxel Sum'):
+                       line_colors: list = ['red', 'green', 'blue'], graph_title = 'Intensity', normalized: bool = False):
     
     '''
     
@@ -87,7 +87,6 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     Parameters:
     1. dataframe: type(DataFrame), this is the raw dataframe which contains all of the relevant intensity values
     1. tracks_to_plot: type(list), contains the tracks id's of tracks within the specified length range
-    2. backgroundIntensity: type(list), the background intensity of the movie 
     4. intensity_to_plot, type(list), the name of the columns to be used for plotting intensity. Note that the first value
     in this list should be for the primary channel, second value for the secondary channel and so on. 
     Default Value: ['amplitude', 'c2_peak']
@@ -95,7 +94,8 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     6. legend_values: type(list), labels for the legend. Must be in line with intensity_to_plot list. The channel that is first in intensity_to_plot
     must also appear first in legend labels. 
     7. line_colors: type(list), colors for the intensity_to_plot lines. line_colors[0] will be the color for intensity_to_plot[0] and so on. 
-    
+    8. normalized: type(bool), if the intensity values are normalized. Default value: False
+
     Output: 
     1. Returns the array of primary channel tracks aligned with respect to secondary channel peaks
     2. Returns the array of secondary channel tracks where tracks are aligned with all peaks of tracks being on 
@@ -121,42 +121,59 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
         # Set x-axis range from 1 to 20
         x_range = np.arange(1, 21)
 
-        # Plot c2_amp and c3_amp on the same subplot
+        # Plot intensities on the same subplot
         row = i // num_cols
         col = i % num_cols
         #length = filtered_df[filtered_df['track_id'] == track_id]['track_length'].values
         length = track_data.shape[0]
-        if channels_to_plot == 2:
-            min0 = track_data[intensity_to_plot[0]].min()
-            min1 = track_data[intensity_to_plot[1]].min()
-            track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
-            track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
-            line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
-            line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1], color = line_colors[1])
-        else: 
-            min0 = track_data[intensity_to_plot[0]].min()
-            min1 = track_data[intensity_to_plot[1]].min()
-            min2 = track_data[intensity_to_plot[2]].min()
-            track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
-            track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
-            track_data[intensity_to_plot[2]] = track_data[intensity_to_plot[2]] - min2
-            line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
-            line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1],  color = line_colors[1])
-            line3, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[2]], label=intensity_to_plot[2], color = line_colors[2])
+
+        lines = []
+        for i in range(channels_to_plot):
+            min_val = track_data[intensity_to_plot[i]].min()
+            track_data[intensity_to_plot[i]] -= min_val
+            max_val = track_data[intensity_to_plot[i]].max()          
+
+            # normalize by max_intensity
+            if normalized:  
+                track_data[intensity_to_plot[i]] /= max_val
+            line, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[i]], label=intensity_to_plot[i], color=line_colors[i])
+            lines.append(line)
+
+        # if channels_to_plot == 2:
+        #     min0 = track_data[intensity_to_plot[0]].min()
+        #     min1 = track_data[intensity_to_plot[1]].min()
+        #     track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
+        #     track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
+        #     line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
+        #     line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1], color = line_colors[1])
+        # else: 
+        #     min0 = track_data[intensity_to_plot[0]].min()
+        #     min1 = track_data[intensity_to_plot[1]].min()
+        #     min2 = track_data[intensity_to_plot[2]].min()
+        #     track_data[intensity_to_plot[0]] = track_data[intensity_to_plot[0]] - min0
+        #     track_data[intensity_to_plot[1]] = track_data[intensity_to_plot[1]] - min1
+        #     track_data[intensity_to_plot[2]] = track_data[intensity_to_plot[2]] - min2
+        #     line1, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[0]], label=intensity_to_plot[0], color = line_colors[0])
+        #     line2, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[1]], label=intensity_to_plot[1],  color = line_colors[1])
+        #     line3, = axes[row, col].plot(track_data[frame_col_name], track_data[intensity_to_plot[2]], label=intensity_to_plot[2], color = line_colors[2])
         axes[row, col].set_title(f'Track {track_id}, length {length}')
         axes[row, col].set_xlabel('Frame')
-        axes[row, col].set_ylabel('Amplitude')
+        axes[row, col].set_ylabel('Intensity')
         #axes[row, col].legend()
 
     fig.suptitle(f'{graph_title} over time', fontsize = 22, fontweight = 'bold')
-    if (channels_to_plot == 2):
-        # Set a single legend for all subplots
-        handles.extend([line1, line2])
-        labels.extend([legend_values[0], legend_values[1]])
-    else: 
-        # Set a single legend for all subplots
-        handles.extend([line1, line2, line3])
-        labels.extend([legend_values[0], legend_values[1], legend_values[2]])
+
+    for i in range(channels_to_plot):
+        handles.append(lines[i])
+        labels.append(legend_values[i])
+    # if (channels_to_plot == 2):
+    #     # Set a single legend for all subplots
+    #     handles.extend([line1, line2])
+    #     labels.extend([legend_values[0], legend_values[1]])
+    # else: 
+    #     # Set a single legend for all subplots
+    #     handles.extend([line1, line2, line3])
+    #     labels.extend([legend_values[0], legend_values[1], legend_values[2]])
         
     # Set a single legend for all subplots
     fig.legend(handles, labels, loc='upper right', ncol=channels_to_plot, fontsize=18)
@@ -169,8 +186,8 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     plt.show()
 
 ##Below code is copied from PyLattice
-def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list, backgroundIntensity: list, 
-                                  intensity_to_plot: list = ['amplitude', 'c2_peak'], track_id_col_name: str = 'track_id'):
+def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list,  backgroundIntensity: list,
+                                  intensity_to_plot: list = ['c3_peak_max', 'c2_peak_max'], track_id_col_name: str = 'track_id'):
     
     '''
     
@@ -181,7 +198,6 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
     Parameters:
     1. dataframe: type(DataFrame), this is the raw dataframe which contains all of the relevant intensity values
     1. listOfTrackIdsAssignedToCohort: type(list), contains the tracks id's of tracks within the specified length range
-    2. backgroundIntensity: type(list), the background intensity of the movie 
     4. intensity_to_plot, type(list), the name of the columns to be used for plotting intensity. Note that the first value
     in this list should be for the primary channel, second value for the secondary channel and so on. 
     Default Value: ['amplitude', 'c2_peak']
@@ -205,71 +221,90 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
     if len(backgroundIntensity) != len(intensity_to_plot):
         raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
-    if len(intensity_to_plot) == 1:
-        raise ValueError('Minimum acceptable dimensions are 2')
+    buffers = [np.full((len(trackIdArray), bufferSize), backgroundIntensity[i], dtype=float) for i in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), intensity_to_plot[i], dtype=float) for i in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
+    counter = 0
 
-    elif len(intensity_to_plot) == 2:
+    for trackId in trackIdArray:
+        track = dataframe[dataframe[track_id_col_name] == trackId]
+        intensities = [track[intensity_to_plot[i]].values.astype(float) for i in range(len(intensity_to_plot))]
+        maxIdx = np.argmax(intensities[1])  # align by peak of secondary channel
 
-        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+        for i in range(len(track)):
+            for j in range(len(intensity_to_plot)):
+                if not np.isnan(intensities[j][i]):
+                    buffers[j][counter][bufferZero-maxIdx+i] = intensities[j][i]
+
+        counter += 1
+
+    return buffers
+
+    # if len(intensity_to_plot) == 1:
+    #     raise ValueError('Minimum acceptable dimensions are 2')
+
+    # elif len(intensity_to_plot) == 2:
+
+    #     p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+    #     s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
         
-        counter = 0
+    #     counter = 0
         
-        for trackId in trackIdArray:
-            track = dataframe[dataframe[track_id_col_name] == trackId]
-            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
-            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
-            maxIdx = np.argmax(s_intensity) # was s_intensity before
+    #     for trackId in trackIdArray:
+    #         track = dataframe[dataframe[track_id_col_name] == trackId]
+    #         p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+    #         s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+    #         maxIdx = np.argmax(s_intensity) # was s_intensity before
         
-            for i in range(0,len(track)):
-                if(not np.isnan(p_intensity[i])):
-                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
-                if(not np.isnan(s_intensity[i])):
-                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
+    #         for i in range(0,len(track)):
+    #             if(not np.isnan(p_intensity[i])):
+    #                 p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
+    #             if(not np.isnan(s_intensity[i])):
+    #                 s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
 
                     
-            counter = counter+1;
+    #         counter = counter+1;
         
-        return p_buffer,s_buffer
+    #     return p_buffer,s_buffer
     
-    elif len(intensity_to_plot) == 3:
+    # elif len(intensity_to_plot) == 3:
 
-        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
-        t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
+    #     p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+    #     s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+    #     t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
         
-        counter = 0
+    #     counter = 0
         
-        for trackId in trackIdArray:
-            track = dataframe[dataframe[track_id_col_name] == trackId]
-            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
-            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
-            t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
+    #     for trackId in trackIdArray:
+    #         track = dataframe[dataframe[track_id_col_name] == trackId]
+    #         p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+    #         s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+    #         t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
             
 
-            # align by peak of secondary channel
-            maxIdx = np.argmax(s_intensity)
+    #         # align by peak of secondary channel
+    #         maxIdx = np.argmax(s_intensity)
             
-            # align by peak of tertiary channel
-            # maxIdx = np.argmax(t_intensity)
+    #         # align by peak of tertiary channel
+    #         # maxIdx = np.argmax(t_intensity)
 
             
         
-            for i in range(0,len(track)):
-                if(not np.isnan(p_intensity[i])):
-                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
-                if(not np.isnan(s_intensity[i])):
-                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
-                if(not np.isnan(t_intensity[i])):
-                    t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i])
+    #         for i in range(0,len(track)):
+    #             if(not np.isnan(p_intensity[i])):
+    #                 p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i])
+    #             if(not np.isnan(s_intensity[i])):
+    #                 s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i])
+    #             if(not np.isnan(t_intensity[i])):
+    #                 t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i])
 
             
                     
-            counter = counter+1;
+    #         counter = counter+1;
 
     
     
-        return p_buffer,s_buffer, t_buffer
+    #     return p_buffer,s_buffer, t_buffer
 
 
 
@@ -311,50 +346,63 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
 
     if len(buffers) != len(colors):
         raise ValueError("dimensions of buffers list and colors list are not equal")
+    
 
-    if len(buffers) == 1:
-        raise ValueError("minimum length 2 and maximum length 3 needed for buffers for plotting")
+    time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
 
-    elif len(buffers) == 2:
-        p_buffer = buffers[0]
-        s_buffer = buffers[1]
-        p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
-        s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
-        p_buffer_std = np.nanstd(p_buffer,axis=0)
-        s_buffer_std = np.nanstd(s_buffer,axis=0)
-        time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
+    for i in range(len(buffers)):
+        buffer = buffers[i]
+        # buffer_average = np.nanmean(buffer, axis=0) 
+        buffer_average = np.nanmean(buffer, axis=0) - background_intensity[i]
+        buffer_std = np.nanstd(buffer, axis=0)
 
-        plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-        plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
-        plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
+        plt.plot(time, buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+        plt.plot(time, buffer_average, c=colors[i], lw=liwi+1, label=legend_vals[i], zorder=2)
+        plt.fill_between(time, buffer_average-buffer_std, buffer_average+buffer_std, facecolor=colors[i], alpha=0.08)
 
-        plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-        plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
-        plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
+    # if len(buffers) == 1:
+    #     raise ValueError("minimum length 2 and maximum length 3 needed for buffers for plotting")
 
-    elif len(buffers) == 3:
-        p_buffer = buffers[0]
-        s_buffer = buffers[1]
-        t_buffer = buffers[2]
-        p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
-        s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
-        t_buffer_average = np.nanmean(t_buffer,axis=0)-background_intensity[2]
-        p_buffer_std = np.nanstd(p_buffer,axis=0)
-        s_buffer_std = np.nanstd(s_buffer,axis=0)
-        t_buffer_std = np.nanstd(t_buffer,axis=0)
-        time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
+    # elif len(buffers) == 2:
+    #     p_buffer = buffers[0]
+    #     s_buffer = buffers[1]
+    #     p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
+    #     s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
+    #     p_buffer_std = np.nanstd(p_buffer,axis=0)
+    #     s_buffer_std = np.nanstd(s_buffer,axis=0)
+    #     time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
 
-        plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-        plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
-        plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
+    #     plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+    #     plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
+    #     plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
 
-        plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-        plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
-        plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
+    #     plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+    #     plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
+    #     plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
 
-        plt.plot(time, t_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
-        plt.plot(time,t_buffer_average,c=colors[2],lw=liwi+1, label = legend_vals[2], zorder =2)
-        plt.fill_between(time,t_buffer_average-t_buffer_std,t_buffer_average+t_buffer_std,facecolor=colors[2],alpha=0.08)
+    # elif len(buffers) == 3:
+    #     p_buffer = buffers[0]
+    #     s_buffer = buffers[1]
+    #     t_buffer = buffers[2]
+    #     p_buffer_average = np.nanmean(p_buffer,axis=0)-background_intensity[0]
+    #     s_buffer_average = np.nanmean(s_buffer,axis=0)-background_intensity[1]
+    #     t_buffer_average = np.nanmean(t_buffer,axis=0)-background_intensity[2]
+    #     p_buffer_std = np.nanstd(p_buffer,axis=0)
+    #     s_buffer_std = np.nanstd(s_buffer,axis=0)
+    #     t_buffer_std = np.nanstd(t_buffer,axis=0)
+    #     time = framerate_msec/1000*(np.array(range(0,bufferSize))-bufferZero)+timeShift[0]
+
+    #     plt.plot(time, p_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+    #     plt.plot(time,p_buffer_average,c=colors[0],lw=liwi+1, label = legend_vals[0], zorder =2)
+    #     plt.fill_between(time,p_buffer_average-p_buffer_std,p_buffer_average+p_buffer_std,facecolor=colors[0],alpha=0.08)
+
+    #     plt.plot(time, s_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+    #     plt.plot(time,s_buffer_average,c=colors[1],lw=liwi+1, label = legend_vals[1], zorder =2)
+    #     plt.fill_between(time,s_buffer_average-s_buffer_std,s_buffer_average+s_buffer_std,facecolor=colors[1],alpha=0.08)
+
+    #     plt.plot(time, t_buffer_average, c='black', lw=liwi+2, zorder=1)  # Border line
+    #     plt.plot(time,t_buffer_average,c=colors[2],lw=liwi+1, label = legend_vals[2], zorder =2)
+    #     plt.fill_between(time,t_buffer_average-t_buffer_std,t_buffer_average+t_buffer_std,facecolor=colors[2],alpha=0.08)
 
 
 
@@ -407,73 +455,99 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
     if len(backgroundIntensity) != len(intensity_to_plot):
         raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
-    if len(intensity_to_plot) == 1:
-        raise ValueError('Minimum acceptable dimensions are 2')
+    buffers = [np.full((len(trackIdArray), bufferSize), backgroundIntensity[i], dtype=float) for i in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), 0) for _ in range(len(intensity_to_plot))]
+    counter = 0
 
-    elif len(intensity_to_plot) == 2:
+    for trackId in trackIdArray:
+        track = dataframe[dataframe[track_id_col_name] == trackId]
+        intensities = [track[intensity_to_plot[i]].values.astype(float) for i in range(len(intensity_to_plot))]
+        maxIdx = np.argmax(intensities[1])  # align by peak of secondary channel
 
-        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+        minIntensities = [np.nanmin(intensity) for intensity in intensities]
+        maxIntensities = [np.nanmax(intensity) for intensity in intensities]
+
+        for i in range(len(track)):
+            for j in range(len(intensity_to_plot)):
+                if not np.isnan(intensities[j][i]):
+                    normalized_intensity = (intensities[j][i] - minIntensities[j]) / (maxIntensities[j] - minIntensities[j])
+                    buffers[j][counter][bufferZero-maxIdx+i] = normalized_intensity
+
+                    # buffers[j][counter][bufferZero-maxIdx+i] = intensities[j][i] / maxIntensities[j]
+
+        counter += 1
+
+    return buffers
+
+    # if len(intensity_to_plot) == 1:
+    #     raise ValueError('Minimum acceptable dimensions are 2')
+
+    # elif len(intensity_to_plot) == 2:
+
+    #     p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+    #     s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
         
-        counter = 0
+    #     counter = 0
         
-        for trackId in trackIdArray:
-            track = dataframe[dataframe[track_id_col_name] == trackId]
-            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
-            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
-            maxIdx = np.argmax(s_intensity) # was s_intensity before
-            p_maxIntensity = np.nanmax(p_intensity)
-            s_maxIntensity = np.nanmax(s_intensity)
+    #     for trackId in trackIdArray:
+    #         track = dataframe[dataframe[track_id_col_name] == trackId]
+    #         p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+    #         s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+    #         maxIdx = np.argmax(s_intensity) # was s_intensity before
+    #         p_maxIntensity = np.nanmax(p_intensity)
+    #         s_maxIntensity = np.nanmax(s_intensity)
         
-            for i in range(0,len(track)):
-                if(not np.isnan(p_intensity[i])):
-                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
-                if(not np.isnan(s_intensity[i])):
-                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
+    #         for i in range(0,len(track)):
+    #             if(not np.isnan(p_intensity[i])):
+    #                 p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
+    #             if(not np.isnan(s_intensity[i])):
+    #                 s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
 
                     
-            counter = counter+1;
+    #         counter = counter+1;
         
-        return p_buffer,s_buffer
+    #     return p_buffer,s_buffer
     
-    elif len(intensity_to_plot) == 3:
+    # elif len(intensity_to_plot) == 3:
 
-        p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
-        s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
-        t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
+    #     p_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[0],dtype=float)
+    #     s_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[1],dtype=float)
+    #     t_buffer = np.full(( len(trackIdArray),bufferSize), backgroundIntensity[2],dtype=float)
         
-        counter = 0
+    #     counter = 0
         
-        for trackId in trackIdArray:
-            track = dataframe[dataframe[track_id_col_name] == trackId]
-            p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
-            s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
-            t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
+    #     for trackId in trackIdArray:
+    #         track = dataframe[dataframe[track_id_col_name] == trackId]
+    #         p_intensity = track[intensity_to_plot[0]].values.astype(float) #primary (channel 3 in our case)
+    #         s_intensity = track[intensity_to_plot[1]].values.astype(float) #secondary  (channel 2 in our case)
+    #         t_intensity = track[intensity_to_plot[2]].values.astype(float) #tertiary (channel 1 in our case)
 
-            # align by peak of secondary channel
-            maxIdx = np.argmax(s_intensity)
+    #         # align by peak of secondary channel
+    #         maxIdx = np.argmax(s_intensity)
 
-            # align by peak of tertiary channel
-            # maxIdx = np.argmax(t_intensity)
+    #         # align by peak of tertiary channel
+    #         # maxIdx = np.argmax(t_intensity)
 
-            p_maxIntensity = np.nanmax(p_intensity)
-            s_maxIntensity = np.nanmax(s_intensity)
-            t_maxIntensity = np.nanmax(t_intensity)
+    #         p_maxIntensity = np.nanmax(p_intensity)
+    #         s_maxIntensity = np.nanmax(s_intensity)
+    #         t_maxIntensity = np.nanmax(t_intensity)
 
             
         
-            for i in range(0,len(track)):
-                if(not np.isnan(p_intensity[i])):
-                    p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
-                if(not np.isnan(s_intensity[i])):
-                    s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
-                if(not np.isnan(t_intensity[i])):
-                    t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i]) / t_maxIntensity
+    #         for i in range(0,len(track)):
+    #             if(not np.isnan(p_intensity[i])):
+    #                 p_buffer[counter][bufferZero-maxIdx+i]=(p_intensity[i]) / p_maxIntensity
+    #             if(not np.isnan(s_intensity[i])):
+    #                 s_buffer[counter][bufferZero-maxIdx+i]=(s_intensity[i]) / s_maxIntensity
+    #             if(not np.isnan(t_intensity[i])):
+    #                 t_buffer[counter][bufferZero-maxIdx+i]=(t_intensity[i]) / t_maxIntensity
 
             
                     
-            counter = counter+1;
+    #         counter = counter+1;
 
     
     
-        return p_buffer,s_buffer, t_buffer
+        

@@ -246,6 +246,7 @@ class Extractor:
         minimum = []
         pixel_values = []
         max_loc = []
+        voxel_sums = []
         frames = self.dataframe[self.frame_col_name].nunique()
         max_z = self.z
         max_y = self.y
@@ -296,7 +297,9 @@ class Extractor:
                     maximum.append(max_value)
                     max_loc.append(max_coords)
                     minimum.append(min_value)
+                    voxel_sums.append(np.nan)                     
                     pixel_values.append(extracted_pixels)
+                    voxel_sums.append(voxel_sum)
                 else:
                     # If all pixels are 0, handle this case as needed
                     mean.append(np.nan)  # Use NaN or any other suitable value
@@ -306,7 +309,7 @@ class Extractor:
                     max_loc.append(temp)
                     pixel_values.append(extracted_pixels)
 
-        return mean,maximum,minimum,pixel_values,max_loc
+        return mean,maximum,minimum,pixel_values,voxel_sums
     
     #Fixed radii(sigma values) version for handling bigger files which do not fit in memory 
     def extract_pixels_data_fixed_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
@@ -342,6 +345,7 @@ class Extractor:
         minimum = []
         pixel_values = []
         max_loc = []
+        voxel_sums = []
         frames = self.dataframe[self.frame_col_name].nunique()
         max_z = self.z
         max_y = self.y
@@ -393,16 +397,18 @@ class Extractor:
                     max_loc.append(max_coords)
                     minimum.append(min_value)
                     pixel_values.append(extracted_pixels)
+                    voxel_sums.append(voxel_sum)
                 else:
                     # If all pixels are 0, handle this case as needed
                     mean.append(np.nan)  # Use NaN or any other suitable value
                     maximum.append(np.nan)
                     minimum.append(np.nan)
+                    voxel_sums.append(np.nan)                     
                     temp = (np.nan, np.nan, np.nan)
                     max_loc.append(temp)
                     pixel_values.append(extracted_pixels)
 
-        return mean,maximum,minimum,pixel_values,max_loc
+        return mean,maximum,minimum,pixel_values,max_loc,voxel_sums
 
     def gaussian_fitting_single_frame(self, expected_sigma: list, center_col_names: list, frame: int, channel: int, dist_between_spots: int):
         """
@@ -555,8 +561,66 @@ class Extractor:
             # Return the combined dataframe instead of saving
             return final_df
 
+# experimental parallel intensity calculation
+
+    # just set the right input parameters and try
+
+    def run_parallel_intensity_measurement(self, expected_sigma: list, center_col_name: list,
+                                    dist_between_spots: int, channel: int,  max_frames: int = 2, all_frames: bool = False):
+        """
+        Processes multiple frames in parallel using the single_frame_segmentation method and returns the combined results.
+        
+        Parameters:
+            max_frames (int, optional): The maximum number of frames to process. Defaults to 2.
+            all_frames (bool, optional): If true all the frames will be processed regardless of max_frames
+            
+        Returns:
+            DataFrame: A pandas DataFrame containing the combined analysis results from all processed frames.
+        """
+
+        if all_frames == True: 
+            frames_to_process = self.dataframe[self.frame_col_name].nunique()
+        else:
+            frames_to_process = max_frames
+
+        num_of_parallel_process = self.cores_to_use()
+        futures_to_frame = {}
+
+        # Initialize a ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers = num_of_parallel_process) as executor:
+        
+            # Submit tasks for each frame to be processed in parallel
+            for frame in range(frames_to_process):
+                future = executor.submit(self.extract_pixels_data_fixed_bd,  expected_sigma, center_col_name, frame, channel, dist_between_spots)
+                futures_to_frame[future] = frame  # Map future to frame number
+
+            
+            frame_results = []
+            # Use tqdm to show progress as tasks complete
+            for future in tqdm(as_completed(futures_to_frame), total=frames_to_process, desc="Processing frames"):
+                frame = futures_to_frame[future]
+                try:
+                    # If you need the result for anything, or to catch exceptions:
+                    result = future.result()
+                    if result is not None: 
+                        # Append a tuple of (frame, result) to frame_results
+                        frame_results.append((frame, result))
+                except Exception as e:
+                    # Handle exceptions (if any) from your processed function
+                    print(f"Error processing frame: {e}")
+            
+            # Initialize an empty DataFrame
+            final_df = pd.DataFrame()
+
+            for frame, result_df in sorted(frame_results):
+                result_df['frame'] = frame  # Add a column with the frame number
+                final_df = pd.concat([final_df, result_df], ignore_index=True)
+            
+            # Return the combined dataframe instead of saving
+            return final_df
+
     #Fixed radi/sigma variant for large files which do not fit in memory 
-    def voxel_sum_fixed_background(self,center_col_names: list,  channel: int, background_radius: list):
+    def voxel_sum_fixed_background(self,center_col_names: list,  channel: int, background_radius: list, offset: list = [0,0]):
         #make background size twice of radius in each dimension 
         #equation to code for is 
         #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
@@ -571,6 +635,7 @@ class Extractor:
         pixel_values = []
         pixel_values_max = []
         adjusted_voxel_sum = []
+        adjusted_voxel_sum_by_volume = []
 
         radius_z = self.radii[0]
         radius_y = self.radii[1]
@@ -579,6 +644,9 @@ class Extractor:
         max_radius_z = self.radii[0] + background_radius[0]
         max_radius_y = self.radii[1] + background_radius[1]
         max_radius_x = self.radii[2] + background_radius[2]
+
+        volume_signal = (1+2*radius_z) * (1+2*radius_y) * (1+2*radius_x)
+        volume_background = (1+2*max_radius_z) * (1+2*max_radius_y) * (1+2*max_radius_x)
         
         for frame in range(frames): 
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
@@ -588,11 +656,12 @@ class Extractor:
             for i in range(len(current_df)):
 
                 z = current_df.loc[i,center_col_names[0]]
-                y = current_df.loc[i,center_col_names[1]]
-                x = current_df.loc[i,center_col_names[2]]
+                y = current_df.loc[i, center_col_names[1]] - offset[0]
+                x = current_df.loc[i, center_col_names[2]] - offset[1]
 
-
-                # Ensure lower bounds for smaller patch 
+                # y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
+                # x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
+                # # Ensure lower bounds for smaller patch 
                 z_start = int(max(0, z - radius_z))
                 y_start = int(max(0, y - radius_y))
                 x_start = int(max(0, x - radius_x))
@@ -650,10 +719,17 @@ class Extractor:
                 area_small = non_zero_pixels.shape[0]
                 area_large = non_zero_pixels_max.shape[0]
 
-                background_adjusted_voxel_sum = voxel_sum - ((voxel_sum_max - voxel_sum) * (area_small/ (area_large - area_small)))
+                # background_adjusted_voxel_sum = voxel_sum - ((voxel_sum_max - voxel_sum) * (area_small/ (area_large - area_small)))
+                background_adjusted_voxel_sum = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(area_small)/ (float(area_large) - float(area_small))))
+
+                # background_adjusted_voxel_sum_by_volume = voxel_sum - ((voxel_sum_max - voxel_sum) * (volume_signal/ (volume_background - volume_signal)))
+                background_adjusted_voxel_sum_by_volume = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(volume_signal)/ (float(volume_background) - float(volume_signal))))                
+                
                 adjusted_voxel_sum.append(background_adjusted_voxel_sum)
-            
-        return voxel_sum_array,pixel_values, adjusted_voxel_sum
+                adjusted_voxel_sum_by_volume.append(background_adjusted_voxel_sum_by_volume)
+
+ 
+        return voxel_sum_array,pixel_values, adjusted_voxel_sum, adjusted_voxel_sum_by_volume
     
 
 
