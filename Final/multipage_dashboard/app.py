@@ -7,7 +7,7 @@ import os
 
 
 #DO NOT CHANGE THE CODE BELOW. EXCEPT output_csv_filename
-# This assumes that your notebook is inside 'MULTIPAGE_DASHBOARD', which is at the same level as 'test_data'
+# This assumes that your notebook is inside 'MULTIPAGE_DASHBOARD', which is at the same level as 'movie_data'
 base_dir = os.path.join(os.path.dirname(os.path.abspath("__file__")), 'Final/movie_data')
 zarr_directory = 'zarr_file/all_channels_data'
 zarr_full_path = os.path.join(base_dir, zarr_directory)
@@ -60,7 +60,7 @@ app.layout = html.Div([
         brand_href="/",
         color="custom-color", 
         dark=True,
-        style={'backgroundColor': '#FF3333'},  # Set the background color directly
+        style={'backgroundColor': '#FFCCCB'},  # Set the background color directly
         #brand_logo="/assets/MatsuLab_Logo_Long.png",  # Path to your logo image
     ),
     html.Div(id='page-content'),  # Content will be rendered here
