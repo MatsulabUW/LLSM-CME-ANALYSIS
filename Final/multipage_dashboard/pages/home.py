@@ -42,15 +42,15 @@ def select_tracks_region_wise(dataframe, tracks, only_basal, only_apical, only_l
     
     return updated_tracks
 
-def select_type_of_intensity(type, voxel_sum_col_names = ['c3_voxel_sum', 'c2_voxel_sum', 'c1_voxel_sum'], 
+def select_type_of_intensity(type,
                              adjusted_voxel_sum_col_names = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted'], 
-                            #  gaussian_col_names = ['c3_gaussian_amp', 'c2_gaussian_amp', 'c1_gaussian_amp'], 
+                             voxel_sum_col_names = ['c3_voxel_sum', 'c2_voxel_sum', 'c1_voxel_sum'], 
                              mean_col_names = ['c3_peak_mean', 'c2_peak_mean', 'c1_peak_mean'],
                              peak_col_names = ['c3_peak_max', 'c2_peak_max', 'c1_peak_max']): 
     
     if type == 'Background subtracted sum': 
         return adjusted_voxel_sum_col_names
-    elif type == 'Sum': 
+    elif type == 'Sum Intensity': 
         return voxel_sum_col_names
     elif type == 'Max Intensity': 
         return peak_col_names
@@ -236,18 +236,31 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
     return fig
 
 #Line chart plot
-def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking_df = track_df, type_of_intensity = 'Adjusted Voxel Sum'):
+def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking_df = track_df, type_of_intensity = 'Background subtracted sum'):
     current_track_df = main_tracking_df[main_tracking_df['track_id'] == track_of_interest]
     intensity_col_names = select_type_of_intensity(type_of_intensity)
 
     # Create Line plot
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[0]], name = 'Channel 3',
-                 line = dict(color = 'red', width = 4)))
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[1]],name = 'Channel 2', 
-                            line=dict(color='green', width = 4)))
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=current_track_df[intensity_col_names[2]],name = 'Channel 1', 
+    # normalize here
+    min_intensity_0 = np.min(current_track_df[intensity_col_names[0]])
+    max_intensity_0 = np.max(current_track_df[intensity_col_names[0]])
+
+    min_intensity_1 = np.min(current_track_df[intensity_col_names[1]])
+    max_intensity_1 = np.max(current_track_df[intensity_col_names[1]])
+
+    min_intensity_2 = np.min(current_track_df[intensity_col_names[2]])
+    max_intensity_2 = np.max(current_track_df[intensity_col_names[2]])
+
+    # normalized by min and max intensity
+
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[0]]-min_intensity_0)/(max_intensity_0-min_intensity_0), name = 'Channel 3',
+                 line = dict(color = 'magenta', width = 4)))
+
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[1]]-min_intensity_0)/(max_intensity_0-min_intensity_0),name = 'Channel 2', 
+                            line=dict(color='lime', width = 4)))
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[2]]-min_intensity_0)/(max_intensity_0-min_intensity_0),name = 'Channel 1', 
                             line=dict(color='blue', width = 4)))
 
     # Edit the layout
@@ -267,7 +280,7 @@ layout = html.Div([
         "text-align": "center",
         "margin-top": "20px",
         "color": "white",  # A deep blue tone
-        "background-color": "#FFF8DC",  # A soft off-white background
+        "background-color": "#FFCCCB",  # background color
         "border-radius": "10px",
         "padding": "20px 20px",
         "box-shadow": "0 4px 8px rgba(0, 0, 0, 0.06)",  # Lighter shadow for subtlety
@@ -361,12 +374,13 @@ layout = html.Div([
     dcc.Dropdown(
         id='intensity_type',
         options=[
-            {'label': 'Voxel Sum', 'value': 'Voxel Sum'},
-            {'label': 'Adjusted Voxel Sum', 'value': 'Adjusted Voxel Sum'},
-            {'label': 'Peak Intensity', 'value': 'Peak Intensity'},
-            {'label': 'Gaussian Peaks', 'value': 'Gaussian Peaks'}
+            {'label': 'Background subtracted sum', 'value': 'Background subtracted sum'},
+            {'label': 'Sum Intensity', 'value': 'Sum Intensity'},            
+            {'label': 'Max Intensity', 'value': 'Max Intensity'},
+            {'label': 'Mean Intensity', 'value': 'Mean Intensity'}
+            # {'label': 'Gaussian Peaks', 'value': 'Gaussian Peaks'}
         ],
-        value='Adjusted Voxel Sum',  # Default selected value
+        value='Background subtracted sum',  # Default selected value
         style={
             'width': '100%',
             'border': '1px solid #ccc',

@@ -60,7 +60,7 @@ app.layout = html.Div([
         brand_href="/",
         color="custom-color", 
         dark=True,
-        style={'backgroundColor': '#FFCCCB'},  # Set the background color directly
+        style={'backgroundColor': 'white'},  # Set the background color directly
         #brand_logo="/assets/MatsuLab_Logo_Long.png",  # Path to your logo image
     ),
     html.Div(id='page-content'),  # Content will be rendered here
