@@ -561,6 +561,64 @@ class Extractor:
             # Return the combined dataframe instead of saving
             return final_df
 
+# experimental parallel intensity calculation
+
+    # just set the right input parameters and try
+
+    def run_parallel_intensity_measurement(self, expected_sigma: list, center_col_name: list,
+                                    dist_between_spots: int, channel: int,  max_frames: int = 2, all_frames: bool = False):
+        """
+        Processes multiple frames in parallel using the single_frame_segmentation method and returns the combined results.
+        
+        Parameters:
+            max_frames (int, optional): The maximum number of frames to process. Defaults to 2.
+            all_frames (bool, optional): If true all the frames will be processed regardless of max_frames
+            
+        Returns:
+            DataFrame: A pandas DataFrame containing the combined analysis results from all processed frames.
+        """
+
+        if all_frames == True: 
+            frames_to_process = self.dataframe[self.frame_col_name].nunique()
+        else:
+            frames_to_process = max_frames
+
+        num_of_parallel_process = self.cores_to_use()
+        futures_to_frame = {}
+
+        # Initialize a ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers = num_of_parallel_process) as executor:
+        
+            # Submit tasks for each frame to be processed in parallel
+            for frame in range(frames_to_process):
+                future = executor.submit(self.extract_pixels_data_fixed_bd,  expected_sigma, center_col_name, frame, channel, dist_between_spots)
+                futures_to_frame[future] = frame  # Map future to frame number
+
+            
+            frame_results = []
+            # Use tqdm to show progress as tasks complete
+            for future in tqdm(as_completed(futures_to_frame), total=frames_to_process, desc="Processing frames"):
+                frame = futures_to_frame[future]
+                try:
+                    # If you need the result for anything, or to catch exceptions:
+                    result = future.result()
+                    if result is not None: 
+                        # Append a tuple of (frame, result) to frame_results
+                        frame_results.append((frame, result))
+                except Exception as e:
+                    # Handle exceptions (if any) from your processed function
+                    print(f"Error processing frame: {e}")
+            
+            # Initialize an empty DataFrame
+            final_df = pd.DataFrame()
+
+            for frame, result_df in sorted(frame_results):
+                result_df['frame'] = frame  # Add a column with the frame number
+                final_df = pd.concat([final_df, result_df], ignore_index=True)
+            
+            # Return the combined dataframe instead of saving
+            return final_df
+
     #Fixed radi/sigma variant for large files which do not fit in memory 
     def voxel_sum_fixed_background(self,center_col_names: list,  channel: int, background_radius: list, offset: list = [0,0]):
         #make background size twice of radius in each dimension 
