@@ -87,7 +87,6 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     Parameters:
     1. dataframe: type(DataFrame), this is the raw dataframe which contains all of the relevant intensity values
     1. tracks_to_plot: type(list), contains the tracks id's of tracks within the specified length range
-    2. backgroundIntensity: type(list), the background intensity of the movie 
     4. intensity_to_plot, type(list), the name of the columns to be used for plotting intensity. Note that the first value
     in this list should be for the primary channel, second value for the secondary channel and so on. 
     Default Value: ['amplitude', 'c2_peak']
@@ -187,8 +186,8 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
     plt.show()
 
 ##Below code is copied from PyLattice
-def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list, backgroundIntensity: list, 
-                                  intensity_to_plot: list = ['amplitude', 'c2_peak'], track_id_col_name: str = 'track_id'):
+def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssignedToCohort: list,  backgroundIntensity: list,
+                                  intensity_to_plot: list = ['c3_peak_max', 'c2_peak_max'], track_id_col_name: str = 'track_id'):
     
     '''
     
@@ -199,7 +198,6 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
     Parameters:
     1. dataframe: type(DataFrame), this is the raw dataframe which contains all of the relevant intensity values
     1. listOfTrackIdsAssignedToCohort: type(list), contains the tracks id's of tracks within the specified length range
-    2. backgroundIntensity: type(list), the background intensity of the movie 
     4. intensity_to_plot, type(list), the name of the columns to be used for plotting intensity. Note that the first value
     in this list should be for the primary channel, second value for the secondary channel and so on. 
     Default Value: ['amplitude', 'c2_peak']
@@ -224,7 +222,8 @@ def createBufferForLifetimeCohort(dataframe: pd.DataFrame ,listOfTrackIdsAssigne
         raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
     buffers = [np.full((len(trackIdArray), bufferSize), backgroundIntensity[i], dtype=float) for i in range(len(intensity_to_plot))]
-
+    # buffers = [np.full((len(trackIdArray), bufferSize), intensity_to_plot[i], dtype=float) for i in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
     counter = 0
 
     for trackId in trackIdArray:
@@ -353,6 +352,7 @@ def cumulative_plots(buffers: list, background_intensity: list, time_shift: int,
 
     for i in range(len(buffers)):
         buffer = buffers[i]
+        # buffer_average = np.nanmean(buffer, axis=0) 
         buffer_average = np.nanmean(buffer, axis=0) - background_intensity[i]
         buffer_std = np.nanstd(buffer, axis=0)
 
@@ -455,8 +455,10 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
     if len(backgroundIntensity) != len(intensity_to_plot):
         raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
-    buffers = [np.full((len(trackIdArray), bufferSize), backgroundIntensity[i], dtype=float) for i in range(len(intensity_to_plot))]
-
+    buffers = [np.full((len(trackIdArray), bufferSize), intensity_to_plot[i], dtype=float) for i in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
+    # buffers = [np.full((len(trackIdArray), bufferSize), 0) for _ in range(len(intensity_to_plot))]
     counter = 0
 
     for trackId in trackIdArray:
@@ -464,12 +466,16 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
         intensities = [track[intensity_to_plot[i]].values.astype(float) for i in range(len(intensity_to_plot))]
         maxIdx = np.argmax(intensities[1])  # align by peak of secondary channel
 
+        minIntensities = [np.nanmin(intensity) for intensity in intensities]
         maxIntensities = [np.nanmax(intensity) for intensity in intensities]
 
         for i in range(len(track)):
             for j in range(len(intensity_to_plot)):
                 if not np.isnan(intensities[j][i]):
-                    buffers[j][counter][bufferZero-maxIdx+i] = intensities[j][i] / maxIntensities[j]
+                    normalized_intensity = (intensities[j][i] - minIntensities[j]) / (maxIntensities[j] - minIntensities[j])
+                    buffers[j][counter][bufferZero-maxIdx+i] = normalized_intensity
+
+                    # buffers[j][counter][bufferZero-maxIdx+i] = intensities[j][i] / maxIntensities[j]
 
         counter += 1
 
