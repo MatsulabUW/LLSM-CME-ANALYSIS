@@ -455,7 +455,7 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
     if len(backgroundIntensity) != len(intensity_to_plot):
         raise ValueError('Dimensions of intensity to plot and background intensity must be same')
 
-    buffers = [np.full((len(trackIdArray), bufferSize), intensity_to_plot[i], dtype=float) for i in range(len(intensity_to_plot))]
+    buffers = [np.full((len(trackIdArray), bufferSize), backgroundIntensity[i], dtype=float) for i in range(len(intensity_to_plot))]
     # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
     # buffers = [np.full((len(trackIdArray), bufferSize), np.nan) for _ in range(len(intensity_to_plot))]
     # buffers = [np.full((len(trackIdArray), bufferSize), 0) for _ in range(len(intensity_to_plot))]
