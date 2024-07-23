@@ -197,24 +197,42 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
     elif plot_type == 'total_z_sum':      
         result_array = total_sum_track_visualisation(track_number,raw_image,main_tracking_df, channel)
 
+    sigma_z = 4
+    sigma_y = 2
+    sigma_x = 2
+
 
     length_of_track = len(result_array)
     # Set the number of rows and columns for subplots
     num_cols = 7
     num_rows = length_of_track // num_cols + 1
-    
-    unique_tracks = main_tracking_df[main_tracking_df['track_id'] == track_number]['frame'].unique()
-    subplot_titles_tuple = tuple(f'frame_{i}' for i in unique_tracks)
 
-    fig = make_subplots(rows=num_rows, cols=7, subplot_titles = subplot_titles_tuple, x_title = 'Frames', 
-                        y_title = 'Intensity', row_titles = None, column_titles = None)
-    
-    
-    for i in range(length_of_track):
-        fig.layout.annotations[i]["font"] = {'size': 10, 'color':'black'}
+    box_x_size_array =  [sigma_x*2+5] * num_cols
+    box_y_size_array =  [sigma_y*2+5] * num_rows
 
-    fig.layout.annotations[length_of_track]["font"] = {'size': 15, 'color':'black'}
-    fig.layout.annotations[length_of_track+1]["font"] = {'size': 15, 'color':'black'}
+    
+    # unique_tracks = main_tracking_df[main_tracking_df['track_id'] == track_number]['frame'].unique()
+    # subplot_titles_tuple = tuple(f'frame_{i}' for i in unique_tracks)
+
+    # fig = make_subplots(rows=num_rows, cols=7, subplot_titles = subplot_titles_tuple, x_title = 'Frames', 
+    #                     y_title = 'Intensity', row_titles = None, column_titles = None)
+    
+
+    fig = make_subplots(rows=num_rows, cols=num_cols, x_title = 'Frames', 
+                        y_title = 'Intensity', shared_xaxes = 'all', shared_yaxes = 'all',
+                        column_widths=box_x_size_array, row_heights=box_y_size_array, horizontal_spacing=0.01, vertical_spacing=0.01)
+
+    fig.update_xaxes(scaleanchor = "y", scaleratio = 1)
+    # fig.update_yaxes(scaleanchor = "x", scaleratio = 1)
+
+
+    # for i in range(length_of_track):
+    #     fig.layout.annotations[i]["font"] = {'size': 10, 'color':'black'}
+
+
+
+    # fig.layout.annotations[length_of_track]["font"] = {'size': 15, 'color':'black'}
+    # fig.layout.annotations[length_of_track+1]["font"] = {'size': 15, 'color':'black'}
 
     r = 1
     c = 1
@@ -223,6 +241,7 @@ def plot_raw_movie(plot_type = 'max_intensity_projection', track_number = unique
         fig.add_trace(image.data[0], row = r, col = c)
         fig.update_xaxes(showticklabels=False, row=r, col=c)
         fig.update_yaxes(showticklabels=False, row=r, col=c)
+
         if i != 0 and (i+1) % (num_cols) == 0: 
             r = r + 1
             c = 1
@@ -258,9 +277,9 @@ def plot_intensity_over_time(track_of_interest = unique_tracks[0], main_tracking
     fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[0]]-min_intensity_0)/(max_intensity_0-min_intensity_0), name = 'Channel 3',
                  line = dict(color = 'magenta', width = 4)))
 
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[1]]-min_intensity_0)/(max_intensity_0-min_intensity_0),name = 'Channel 2', 
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[1]]-min_intensity_1)/(max_intensity_1-min_intensity_1),name = 'Channel 2', 
                             line=dict(color='lime', width = 4)))
-    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[2]]-min_intensity_0)/(max_intensity_0-min_intensity_0),name = 'Channel 1', 
+    fig.add_trace(go.Scatter(x=current_track_df['frame'], y=(current_track_df[intensity_col_names[2]]-min_intensity_2)/(max_intensity_2-min_intensity_2),name = 'Channel 1', 
                             line=dict(color='blue', width = 4)))
 
     # Edit the layout
