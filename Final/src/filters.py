@@ -8,6 +8,8 @@ import zarr
 from scipy.spatial import distance_matrix
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
+from skimage.feature import peak_local_max
+
 
 '''
 The class below is used to get relevant features of the tracks in an organised manner. More features can be added in this class
@@ -538,6 +540,7 @@ def plot_z_sum_bd(zarr_array: zarr.array):
 
     Output: 
     1. plots graph of sum of intensity over each z slice for different frames
+    2. returns the basal and apical boundaries
     '''
 
     c1_raw = zarr_array
@@ -570,14 +573,55 @@ def plot_z_sum_bd(zarr_array: zarr.array):
     
     for i in range(len(all_frame_sum)):
         colors = ['red', 'green', 'blue', 'orange', 'pink']
-        plt.plot(x_values, all_frame_sum[i], color = colors[i], label = f'frame {times_to_plot[i]}')
+        plt.plot(x_values, all_frame_sum[i]/np.max(all_frame_sum[i]), color = colors[i], alpha = 0.5)
         # Format y-axis ticks to display whole values
     
-    plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0f}'.format(x)))
-    plt.legend()
+    # plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0f}'.format(x)))
+    # plt.legend()
+    # plt.xlabel('Z slice')
+    # plt.ylabel('Pixels sum')
+    # plt.title('Pixel sum over Z slices')
+
+    # auto-detected basal and apical boundaries by smoothing, detecting 2 peaks, and offsetting by 6 slices
+
+    all_slices_mean = np.mean(all_frame_sum, axis = 0)
+    # plt.plot(all_slices_mean/np.max(all_slices_mean))
+
+    # automatically calculate the two peaks of the averaged pixel sum to estimate the basal and apical boundaries
+
+    # or for all of all_frame_sum
+
+    # Function to find a specified number of peaks using local peak maxima
+    def find_top_n_peaks(data, num_peaks):
+        coordinates = peak_local_max(data, num_peaks=num_peaks)
+        return coordinates.flatten()
+
+    # Find peaks for mean
+
+    # smooth all_slices_mean with a kernel of size 4
+    all_slices_mean_smooth = np.convolve(all_slices_mean, np.ones(4), mode='same')
+
+    region_boundaries = find_top_n_peaks(all_slices_mean_smooth, 2)
+
+    # offset the region boundaries by 6 slices so that basal and apical regions are more fully captured
+    region_boundary_offset = 6
+
+    region_boundaries = [np.min(region_boundaries) + region_boundary_offset, np.max(region_boundaries) - region_boundary_offset]
+
+    plt.plot(all_slices_mean_smooth/np.max(all_slices_mean_smooth), label = 'Mean intensity smoothed', linewidth = 1, color = 'black')
+    # plot vertical lines at the two peak locations
+    plt.axvline(x=region_boundaries[0], color='r', linestyle='--', label = 'Basal boundary = slice ' + str(region_boundaries[0]))
+    plt.axvline(x=region_boundaries[1], color='g', linestyle='--', label = 'Apical boundary = slice ' + str(region_boundaries[1]))
+
     plt.xlabel('Z slice')
-    plt.ylabel('Pixels sum')
+    plt.ylabel('Pixel sum')
     plt.title('Pixel sum over Z slices')
+    plt.legend()
+    plt.show()
+
+    return region_boundaries
+
+    
 
 
 # Function to allocate membrane regions
