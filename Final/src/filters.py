@@ -383,7 +383,7 @@ class Track:
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
                                  coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
-                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted']):
+                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted']):
     '''
     Create tracks from a pandas DataFrame.
 
