@@ -296,8 +296,7 @@ class Extractor:
                     mean.append(mean_value)
                     maximum.append(max_value)
                     max_loc.append(max_coords)
-                    minimum.append(min_value)
-                    voxel_sums.append(np.nan)                     
+                    minimum.append(min_value)                    
                     pixel_values.append(extracted_pixels)
                     voxel_sums.append(voxel_sum)
                 else:
@@ -305,11 +304,13 @@ class Extractor:
                     mean.append(np.nan)  # Use NaN or any other suitable value
                     maximum.append(np.nan)
                     minimum.append(np.nan)
+                    voxel_sums.append(np.nan)
                     temp = (np.nan, np.nan, np.nan)
                     max_loc.append(temp)
                     pixel_values.append(extracted_pixels)
 
-        return mean,maximum,minimum,pixel_values,voxel_sums
+
+        return mean,maximum,minimum,pixel_values,max_loc,voxel_sums
     
     #Fixed radii(sigma values) version for handling bigger files which do not fit in memory 
     def extract_pixels_data_fixed_bd(self, center_col_names: list, channel: int, offset: list = [0,0]):
@@ -731,5 +732,118 @@ class Extractor:
  
         return voxel_sum_array,pixel_values, adjusted_voxel_sum, adjusted_voxel_sum_by_volume
     
+    #Variable radii(sigma values) version
+    def voxel_sum_variable_background(self,center_col_names: list,  channel: int, background_radius: list, offset: list = [0,0]):
+        #make background size twice of radius in each dimension 
+        #equation to code for is 
+        #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
+        #AREA is in pixels (can extract size of the non zero pixels array)
+        current_channel = channel - 1 
+        frames = self.dataframe[self.frame_col_name].nunique()
+        max_z = self.z
+        max_y = self.y
+        max_x = self.x
+        voxel_sum_array = []
+        voxel_sum_array_max = []
+        pixel_values = []
+        pixel_values_max = []
+        adjusted_voxel_sum = []
+        adjusted_voxel_sum_by_volume = []
 
+        
+        
+        for frame in range(frames): 
+            current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
+            current_image = self.zarr_obj[frame,current_channel,:,:,:]
+        
+            
+            for i in range(len(current_df)):
 
+                z = current_df.loc[i,center_col_names[0]]
+                y = current_df.loc[i, center_col_names[1]] - offset[0]
+                x = current_df.loc[i, center_col_names[2]] - offset[1]
+                radius_z = current_df.loc[i,self.radi_col_names[0]]
+                radius_y = current_df.loc[i,self.radi_col_names[1]]
+                radius_x = current_df.loc[i,self.radi_col_names[2]]
+
+                max_radius_z = radius_z + background_radius[0]
+                max_radius_y = radius_y + background_radius[1]
+                max_radius_x = radius_x + background_radius[2]
+
+                volume_signal = (1+2*radius_z) * (1+2*radius_y) * (1+2*radius_x)
+                volume_background = (1+2*max_radius_z) * (1+2*max_radius_y) * (1+2*max_radius_x)
+
+                # y = max(0,current_df.loc[i, center_col_names[1]] - offset[0])
+                # x = max(0,current_df.loc[i, center_col_names[2]] - offset[1])
+                # # Ensure lower bounds for smaller patch 
+                z_start = int(max(0, z - radius_z))
+                y_start = int(max(0, y - radius_y))
+                x_start = int(max(0, x - radius_x))
+
+                # Ensure upper bounds for smaller patch 
+                z_end = int(min(max_z, z + radius_z))
+                y_end = int(min(max_y, y + radius_y))
+                x_end = int(min(max_x, x + radius_x))
+
+                # Ensure lower bounds for larger patch 
+                max_z_start = int(max(0, z - max_radius_z))
+                max_y_start = int(max(0, y - max_radius_y))
+                max_x_start = int(max(0, x - max_radius_x))
+
+                # Ensure upper bounds for larger patch 
+                max_z_end = int(min(max_z, z + max_radius_z))
+                max_y_end = int(min(max_y, y + max_radius_y))
+                max_x_end = int(min(max_x, x + max_radius_x))
+
+                # Extract relevant pixels for the smaller patch
+                extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
+
+                # Extract relevant pixels for the larger patch
+                extracted_pixels_max = current_image[max_z_start:max_z_end, max_y_start:max_y_end, max_x_start:max_x_end]
+                
+                # Exclude pixels with value 0 before calculating mean
+                non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+
+                # Exclude pixels with value 0 before calculating mean for the larger patch 
+                non_zero_pixels_max = extracted_pixels_max[extracted_pixels_max != 0]
+
+                if non_zero_pixels.size > 0:
+                    # Calculate statistics
+                    voxel_sum = np.sum(non_zero_pixels)
+
+                    # Get coordinates of the maximum value
+                    voxel_sum_array.append(voxel_sum)
+                    pixel_values.append(non_zero_pixels)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
+
+                if non_zero_pixels_max.size > 0:
+                    # Calculate statistics
+                    voxel_sum_max = np.sum(non_zero_pixels_max)
+
+                    # Get coordinates of the maximum value
+                    voxel_sum_array_max.append(voxel_sum_max)
+                    pixel_values_max.append(non_zero_pixels_max)
+                else:
+                    # If all pixels are 0, handle this case as needed
+                    voxel_sum_array_max.append(np.nan)  # Use NaN or any other suitable value
+                
+                #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
+                area_small = non_zero_pixels.shape[0]
+                area_large = non_zero_pixels_max.shape[0]
+
+                # background_adjusted_voxel_sum = voxel_sum - ((voxel_sum_max - voxel_sum) * (area_small/ (area_large - area_small)))
+                background_adjusted_voxel_sum = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(area_small)/ (float(area_large) - float(area_small))))
+
+                # background_adjusted_voxel_sum_by_volume = voxel_sum - ((voxel_sum_max - voxel_sum) * (volume_signal/ (volume_background - volume_signal)))
+                background_adjusted_voxel_sum_by_volume = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(volume_signal)/ (float(volume_background) - float(volume_signal))))                
+                
+                adjusted_voxel_sum.append(background_adjusted_voxel_sum)
+                adjusted_voxel_sum_by_volume.append(background_adjusted_voxel_sum_by_volume)
+
+ 
+        return voxel_sum_array,pixel_values, adjusted_voxel_sum, adjusted_voxel_sum_by_volume
+    
+
+    
