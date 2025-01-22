@@ -668,9 +668,9 @@ class Extractor:
                 x_start = int(max(0, x - radius_x))
 
                 # Ensure upper bounds for smaller patch 
-                z_end = int(min(max_z, z + radius_z))
-                y_end = int(min(max_y, y + radius_y))
-                x_end = int(min(max_x, x + radius_x))
+                z_end = int(min(max_z, z + radius_z + 1))
+                y_end = int(min(max_y, y + radius_y + 1))
+                x_end = int(min(max_x, x + radius_x + 1))
 
                 # Ensure lower bounds for larger patch 
                 max_z_start = int(max(0, z - max_radius_z))
@@ -678,9 +678,9 @@ class Extractor:
                 max_x_start = int(max(0, x - max_radius_x))
 
                 # Ensure upper bounds for larger patch 
-                max_z_end = int(min(max_z, z + max_radius_z))
-                max_y_end = int(min(max_y, y + max_radius_y))
-                max_x_end = int(min(max_x, x + max_radius_x))
+                max_z_end = int(min(max_z, z + max_radius_z + 1))
+                max_y_end = int(min(max_y, y + max_radius_y + 1))
+                max_x_end = int(min(max_x, x + max_radius_x + 1))
 
                 # Extract relevant pixels for the smaller patch
                 extracted_pixels = current_image[z_start:z_end, y_start:y_end, x_start:x_end]
