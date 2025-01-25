@@ -72,7 +72,7 @@ def peak_local_max_3d(image,min_distance,threshold=0):
         maxCandidate_y = maxCandidate[0][2]
 
         maxCandidate_value = maxCandidate[1]
-        windowSizeHalf = int(min_distance/2)
+        windowSizeHalf = round(min_distance/2)
         #print(windowSizeHalf)
 
 #        print(maxCandidate_x-windowSizeHalf)
