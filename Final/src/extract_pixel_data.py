@@ -637,6 +637,8 @@ class Extractor:
         pixel_values_max = []
         adjusted_voxel_sum = []
         adjusted_voxel_sum_by_volume = []
+        vol_sig = []
+        vol_bg = []
 
         radius_z = self.radii[0]
         radius_y = self.radii[1]
@@ -646,8 +648,8 @@ class Extractor:
         max_radius_y = self.radii[1] + background_radius[1]
         max_radius_x = self.radii[2] + background_radius[2]
 
-        volume_signal = (1+2*radius_z) * (1+2*radius_y) * (1+2*radius_x)
-        volume_background = (1+2*max_radius_z) * (1+2*max_radius_y) * (1+2*max_radius_x)
+        # volume_signal = (1+2*radius_z) * (1+2*radius_y) * (1+2*radius_x)
+        # volume_background = (1+2*max_radius_z) * (1+2*max_radius_y) * (1+2*max_radius_x)
         
         for frame in range(frames): 
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
@@ -690,9 +692,11 @@ class Extractor:
                 
                 # Exclude pixels with value 0 before calculating mean
                 non_zero_pixels = extracted_pixels[extracted_pixels != 0]
+                volume_signal = non_zero_pixels.size
 
                 # Exclude pixels with value 0 before calculating mean for the larger patch 
                 non_zero_pixels_max = extracted_pixels_max[extracted_pixels_max != 0]
+                volume_background = non_zero_pixels_max.size
 
                 if non_zero_pixels.size > 0:
                     # Calculate statistics
@@ -728,9 +732,11 @@ class Extractor:
                 
                 adjusted_voxel_sum.append(background_adjusted_voxel_sum)
                 adjusted_voxel_sum_by_volume.append(background_adjusted_voxel_sum_by_volume)
+                vol_sig.append(volume_signal)
+                vol_bg.append(volume_background)
 
  
-        return voxel_sum_array,pixel_values, adjusted_voxel_sum, adjusted_voxel_sum_by_volume
+        return voxel_sum_array,pixel_values, adjusted_voxel_sum, adjusted_voxel_sum_by_volume, vol_sig, vol_bg
     
     #Variable radii(sigma values) version
     def voxel_sum_variable_background(self,center_col_names: list,  channel: int, background_radius: list, offset: list = [0,0]):
