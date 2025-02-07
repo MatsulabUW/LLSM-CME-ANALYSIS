@@ -117,12 +117,12 @@ class Detector:
             if(gaussian!=-1):
                 amplitude = gaussian[0]
 
-                mu_x     = int(gaussian[1][1]) 
-                mu_y     = int(gaussian[1][2]) 
-                mu_z     = int(gaussian[1][0]) 
-                sigma_x  = int(gaussian[2][1]) 
-                sigma_y  = int(gaussian[2][2])
-                sigma_z  = int(gaussian[2][0])
+                mu_x     = round(gaussian[1][1]) 
+                mu_y     = round(gaussian[1][2]) 
+                mu_z     = round(gaussian[1][0]) 
+                sigma_x  = round(gaussian[2][1]) 
+                sigma_y  = round(gaussian[2][2])
+                sigma_z  = round(gaussian[2][0])
  
                 accumulator.append(np.array([amplitude,mu_x,mu_y,mu_z,sigma_x,sigma_y,sigma_z]))
                 
