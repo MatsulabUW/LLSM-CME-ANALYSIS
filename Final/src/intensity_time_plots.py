@@ -548,6 +548,71 @@ def createBufferForLifetimeCohort_normalized(dataframe: pd.DataFrame ,listOfTrac
                     
     #         counter = counter+1;
 
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def cumulative_plots_ax(buffers: list, background_intensity: list, time_shift: int, colors: list = ['magenta', 'lime', 'blue'], 
+                     graph_title: str = 'Average Amplitude over time', axis_labels: list = ['Time', 'Amplitude'], 
+                     framerate_msec: float = 2.3 * 1000,
+                     legend_vals: list = ['Primary Channel (Clathrin)', 'Secondary Channel (Dynamin)', 'Tertiary Channel (Actin)'], 
+                     ax=None):
+    '''
+    Parameters:
+    - buffers: List of arrays returned from the function createBufferForLifetimeCohort.
+    - background_intensity: List of ints representing background intensity values.
+    - time_shift: Time shift applied to the x-axis for alignment.
+    - colors: List of colors for each channel.
+    - graph_title: Title for the graph.
+    - axis_labels: Labels for the x-axis and y-axis.
+    - framerate_msec: The framerate of the original movie in milliseconds.
+    - legend_vals: Values to be used for the legend.
+    - ax: The axis to plot on. If None, a new plot will be created using `plt`.
+
+    Output: 
+    - Plots the graph on the provided axis or creates a new figure if no axis is passed.
+    '''
+    
+    # If no ax is provided, create a new figure
+    if ax is None:
+        ax = plt.gca()  # Get current axis if no ax is passed, or create one
+    
+    # Ensure buffers and colors lists have the same length
+    if len(buffers) != len(colors):
+        raise ValueError("Dimensions of buffers list and colors list are not equal")
+    
+    bufferSize = 200
+    bufferZero = 100
+    timeShift = np.array([0, 30, 70, 120]) + time_shift
+    alph = 0.05
+    liwi = 0.5
+
+    time = framerate_msec / 1000 * (np.array(range(0, bufferSize)) - bufferZero) + timeShift[0]
+
+    for i in range(len(buffers)):
+        buffer = buffers[i]
+        buffer_average = np.nanmean(buffer, axis=0) - background_intensity[i]  # Adjust for background intensity
+        buffer_std = np.nanstd(buffer, axis=0)
+
+        ax.plot(time, buffer_average, c='black', lw=liwi + 2, zorder=1)  # Border line
+        ax.plot(time, buffer_average, c=colors[i], lw=liwi + 1, label=legend_vals[i], zorder=2)
+        ax.fill_between(time, buffer_average - buffer_std, buffer_average + buffer_std, facecolor=colors[i], alpha=0.08)
+
+    # ax.set_xlabel(axis_labels[0], fontsize=14)
+    # ax.set_ylabel(axis_labels[1], fontsize=14)
+    ax.set_title(graph_title, fontsize=16)
+    ax.legend(fontsize=6)
+    
+    # Set x-axis limit
+    ax.set_xlim(-5, 200)
+
+    # Optional: Add gridlines if desired
+    ax.grid(True)
+
+    # Return the axis object for further customization if needed
+    return ax
+
+
     
     
         
