@@ -13,3 +13,4 @@ Final/movie_data/zarr_file/C
 .DS_Store
 __pycache__/
 *.pyc
+.ipynb_checkpoints
