@@ -1,10 +1,10 @@
 # 3-D Time-Series Microscopy Image Analysis
 ## Pipeline for time-series microscopy data on Clathrin-Mediated Endocytosis
 
-![main gif](https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/main_image.gif)
+![main gif](./misc/main_image.gif)
 <p align="center">
-  <img src="https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/subplots.png" alt="subplots" width="400"/>
-  <img src="https://github.com/Mdanishnadeem/LLSM-CME-ANALYSIS/blob/main/misc/averaged_plots.png" alt="averaged_plots" width="400"/>
+  <img src="./misc/subplots.png" alt="subplots" width="400"/>
+  <img src="./misc/averaged_plots.png" alt="averaged_plots" width="400"/>
 </p>
 
 ## Overview: 
