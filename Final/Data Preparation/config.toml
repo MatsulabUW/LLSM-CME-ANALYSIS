@@ -1,2 +1,3 @@
-# Path of tif file
-input_file_name = '/Users/albator/Documents/Akamatsu_lab/Pipeline/movies/movie_z12-20.tif'
+# Tif file name inside Final/movie_data/full_movie folder
+
+input_file_name = 'movie.tif'
