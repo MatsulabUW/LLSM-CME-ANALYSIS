@@ -1,11 +1,11 @@
 # Remove bright detections
-amplitude_tolerance = 1.0
+amplitude_tolerance = 1.5
 
 # Remove large detections
-sigmax_tolerance = 1.0
-sigmay_tolerance = 1.0
-sigmaz_tolerance = 1.0
+sigmax_tolerance = 1.1
+sigmay_tolerance = 2.5
+sigmaz_tolerance = 1.45
 
 # Remove low detection quality (high error) detections
-quality_threshold_mu = 1.0
-quality_threshold_sigma = 1.0
+quality_threshold_mu = 1.1
+quality_threshold_sigma = 1.22
