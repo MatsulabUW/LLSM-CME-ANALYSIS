@@ -1,3 +1,3 @@
-# Tif file name inside Final/movie_data/full_movie folder
-
+# Place your movie file in Final/movie_data folder
+# Then change this variable with the name of your file 
 input_file_name = '20240927_MA3_Abhi410_65_510_202020_CK689_50uM_5-10min_15um-01_processed-1-cropped.tif'

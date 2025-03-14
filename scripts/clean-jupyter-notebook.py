@@ -4,7 +4,6 @@
 # This runs automatically when doing a "git commit" to ensure code quality
 
 import sys
-import json
 from nbformat import read, write, NO_CONVERT
 
 def strip_output(nb):

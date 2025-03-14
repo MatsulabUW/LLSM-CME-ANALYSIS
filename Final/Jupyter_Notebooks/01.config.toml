@@ -1,3 +1,5 @@
+# Parameters to adjust
+
 # Detection settings
 channel_to_detect = 3
 threshold_intensity = 210

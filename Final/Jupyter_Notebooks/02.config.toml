@@ -1,3 +1,5 @@
+# Parameters to adjust
+
 # Remove bright detections
 amplitude_tolerance = 1.5
 
