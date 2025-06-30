@@ -99,10 +99,13 @@ class Track:
         self.y = y
         self.z = z
         self.intensities = intensities
+        self.adjusted_voxel_sum = adjusted_voxel_sum
         self.track_length = len(frames)
         self.track_start = frames.min()
         self.track_end = frames.max()
         self.peak_intensities = self.calculate_peak_intensities()
+        self.peak_adjusted_voxel_sum = self.caclulate_peak_adjusted_voxel_sum()
+        self.peak_adjusted_voxel_sum_frame = self.calculate_peak_adjusted_voxel_sum_frame()
         self.peak_intensity_frames = self.calculate_peak_intensity_frame()
         self.mean_displacement_track = self.calculate_mean_displacement()
         self.mean_z_value = z.mean()
@@ -169,6 +172,21 @@ class Track:
             peaks_intensitiy_values.append(max(self.intensities[:,i]))
         return peaks_intensitiy_values
     
+    def caclulate_peak_adjusted_voxel_sum(self):
+        """
+        Calculates the peak adjusted voxel sum values for each channel.
+
+        Returns
+        -------
+        list
+            The list of peak adjusted voxel sum values for each channel.
+        """
+
+        peaks_adjusted_voxel_sum = []
+        for i in range(self.adjusted_voxel_sum.shape[1]):
+            peaks_adjusted_voxel_sum.append(max(self.adjusted_voxel_sum[:,i]))
+        return peaks_adjusted_voxel_sum
+    
     def print_peak_intensities(self):
         """
         Prints the peak intensity values for each channel.
@@ -190,6 +208,22 @@ class Track:
         peak_frames = []
         for i in range(self.intensities.shape[1]):
             index = np.argmax(self.intensities[:,i])
+            peak_frames.append(index + self.track_start)
+        return peak_frames
+    
+    def calculate_peak_adjusted_voxel_sum_frame(self):
+        """
+        Calculates the frames where peak adjusted voxel sums occur for each channel.
+
+        Returns
+        -------
+        list
+            The list of frames where peak adjusted voxel sums occur for each channel.
+        """
+
+        peak_frames = []
+        for i in range(self.adjusted_voxel_sum.shape[1]):
+            index = np.argmax(self.adjusted_voxel_sum[:,i])
             peak_frames.append(index + self.track_start)
         return peak_frames
     
