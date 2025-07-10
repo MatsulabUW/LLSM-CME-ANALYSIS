@@ -707,7 +707,8 @@ class Extractor:
                     pixel_values.append(non_zero_pixels)
                 else:
                     # If all pixels are 0, handle this case as needed
-                    voxel_sum_array.append(np.nan)  # Use NaN or any other suitable value
+                    voxel_sum = 0
+                    voxel_sum_array.append(voxel_sum)  # Use NaN or any other suitable value
 
                 if non_zero_pixels_max.size > 0:
                     # Calculate statistics
@@ -718,18 +719,36 @@ class Extractor:
                     pixel_values_max.append(non_zero_pixels_max)
                 else:
                     # If all pixels are 0, handle this case as needed
-                    voxel_sum_array_max.append(np.nan)  # Use NaN or any other suitable value
-                
+                    voxel_sum_max = 0
+                    voxel_sum_array_max.append(voxel_sum_max)  # Use NaN or any other suitable value
+
                 #adjusted voxel sum = small voxel sum - (large voxel sum - small voxel sum) * (AREA small / (AREA large - AREA small))
                 area_small = non_zero_pixels.shape[0]
                 area_large = non_zero_pixels_max.shape[0]
 
                 # background_adjusted_voxel_sum = voxel_sum - ((voxel_sum_max - voxel_sum) * (area_small/ (area_large - area_small)))
-                background_adjusted_voxel_sum = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(area_small)/ (float(area_large) - float(area_small))))
+                if area_large == area_small:
+                    print('Warning: area_large and area_small are equal, which may lead to division by zero.')
+                    print('Channel:', channel, 'Frame:', frame, 'z:', z, 'y:', y, 'x:', x)
+
+                if volume_background == volume_signal:
+                    print('Warning: volume_background and volume_signal are equal, which may lead to division by zero.')
+                    print('Channel:', channel, 'Frame:', frame, 'z:', z, 'y:', y, 'x:', x, 'Volume Background:', volume_background, 'Volume Signal:', volume_signal)
+
+                if (area_large - area_small) != 0:
+                    background_adjusted_voxel_sum = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(area_small)/ (float(area_large) - float(area_small))))
+                else:
+                    
+                    background_adjusted_voxel_sum = np.nan
+                    print('Warning: area_large and area_small are equal, hence setting the background adjusted voxel sum to NaN.')
 
                 # background_adjusted_voxel_sum_by_volume = voxel_sum - ((voxel_sum_max - voxel_sum) * (volume_signal/ (volume_background - volume_signal)))
-                background_adjusted_voxel_sum_by_volume = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(volume_signal)/ (float(volume_background) - float(volume_signal))))                
-                
+                if (volume_background - volume_signal) != 0:
+                    background_adjusted_voxel_sum_by_volume = voxel_sum - ((float(voxel_sum_max) - float(voxel_sum)) * (float(volume_signal)/ (float(volume_background) - float(volume_signal))))
+                else:
+                    background_adjusted_voxel_sum_by_volume = np.nan
+                    print('Warning: volume_background and volume_signal are equal, hence setting the background adjusted voxel sum by volume to NaN.')
+
                 adjusted_voxel_sum.append(background_adjusted_voxel_sum)
                 adjusted_voxel_sum_by_volume.append(background_adjusted_voxel_sum_by_volume)
                 vol_sig.append(volume_signal)
