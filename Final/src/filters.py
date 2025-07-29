@@ -71,7 +71,7 @@ class Track:
         The maximum movement in the x-direction.
     """
 
-    def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum):
+    def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum, trackability=None):
         """
         Initializes the Track object with the given parameters.
 
@@ -98,6 +98,7 @@ class Track:
         self.x = x
         self.y = y
         self.z = z
+        self.trackability = trackability
         self.intensities = intensities
         self.adjusted_voxel_sum = adjusted_voxel_sum
         self.track_length = len(frames)
@@ -417,7 +418,7 @@ class Track:
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
                                  coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
-                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted']):
+                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted'], trackability_col_name: str = 'segTrackability'):
     '''
     Create tracks from a pandas DataFrame.
 
@@ -427,6 +428,7 @@ def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'tra
     3. frame_col_name (str): Name of the column containing frame numbers. Default is 'frame'.
     4. coords (list): List of column names containing spatial coordinates (x, y, z). Default is ['mu_x', 'mu_y', 'mu_z'].
     5. intensities_col_name (list): List of column names containing intensities. Default is ['amplitude', 'c2_peak'].
+    6. trackability_col_name (str): Optional - Name of the column containing trackability values. Default is 'segTrackability'.
 
     Output:
     1. list: A list of Track objects created from the DataFrame.
@@ -439,6 +441,7 @@ def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'tra
             x = group[coords[0]],
             y = group[coords[1]],
             z = group[coords[2]],
+            trackability = group[trackability_col_name] if trackability_col_name in group.columns else None,
             intensities = group[intensities_col_name].values, 
             adjusted_voxel_sum = group[adjusted_voxel_sum_col_name].values,
         )
