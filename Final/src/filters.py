@@ -6,6 +6,9 @@ from matplotlib.ticker import FuncFormatter
 from aicsimageio import AICSImage
 import zarr
 from scipy.spatial import distance_matrix
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+from skimage.feature import peak_local_max
 
 
 '''
@@ -96,10 +99,13 @@ class Track:
         self.y = y
         self.z = z
         self.intensities = intensities
+        self.adjusted_voxel_sum = adjusted_voxel_sum
         self.track_length = len(frames)
         self.track_start = frames.min()
         self.track_end = frames.max()
         self.peak_intensities = self.calculate_peak_intensities()
+        self.peak_adjusted_voxel_sum = self.caclulate_peak_adjusted_voxel_sum()
+        self.peak_adjusted_voxel_sum_frame = self.calculate_peak_adjusted_voxel_sum_frame()
         self.peak_intensity_frames = self.calculate_peak_intensity_frame()
         self.mean_displacement_track = self.calculate_mean_displacement()
         self.mean_z_value = z.mean()
@@ -166,6 +172,21 @@ class Track:
             peaks_intensitiy_values.append(max(self.intensities[:,i]))
         return peaks_intensitiy_values
     
+    def caclulate_peak_adjusted_voxel_sum(self):
+        """
+        Calculates the peak adjusted voxel sum values for each channel.
+
+        Returns
+        -------
+        list
+            The list of peak adjusted voxel sum values for each channel.
+        """
+
+        peaks_adjusted_voxel_sum = []
+        for i in range(self.adjusted_voxel_sum.shape[1]):
+            peaks_adjusted_voxel_sum.append(max(self.adjusted_voxel_sum[:,i]))
+        return peaks_adjusted_voxel_sum
+    
     def print_peak_intensities(self):
         """
         Prints the peak intensity values for each channel.
@@ -187,6 +208,22 @@ class Track:
         peak_frames = []
         for i in range(self.intensities.shape[1]):
             index = np.argmax(self.intensities[:,i])
+            peak_frames.append(index + self.track_start)
+        return peak_frames
+    
+    def calculate_peak_adjusted_voxel_sum_frame(self):
+        """
+        Calculates the frames where peak adjusted voxel sums occur for each channel.
+
+        Returns
+        -------
+        list
+            The list of frames where peak adjusted voxel sums occur for each channel.
+        """
+
+        peak_frames = []
+        for i in range(self.adjusted_voxel_sum.shape[1]):
+            index = np.argmax(self.adjusted_voxel_sum[:,i])
             peak_frames.append(index + self.track_start)
         return peak_frames
     
@@ -307,11 +344,80 @@ class Track:
         return max_z - min_z
 
 
+    def cores_to_use(self):
+        """
+        Determines the optimal number of cores to use for parallel processing.
+        
+        Returns:
+            int: The number of cores to use. Raises a ValueError if the specified number of cores exceeds available cores.
+        """
 
+        if self.parallel_process == -1:
+            return os.cpu_count() - 1
+        elif self.parallel_process > os.cpu_count():
+            raise ValueError(f"Error: You specified {self.parallel_process} cores, but only {os.cpu_count()} cores are available.")
+        else: 
+            return self.parallel_process
+            
+    # def run_parallel_frame_processing(self, expected_sigma: list, center_col_name: list,
+    #                                 dist_between_spots: int, channel: int,  max_frames: int = 2, all_frames: bool = False):
+    #     """
+    #     Processes multiple frames in parallel using the single_frame_segmentation method and returns the combined results.
+        
+    #     Parameters:
+    #         max_frames (int, optional): The maximum number of frames to process. Defaults to 2.
+    #         all_frames (bool, optional): If true all the frames will be processed regardless of max_frames
+            
+    #     Returns:
+    #         DataFrame: A pandas DataFrame containing the combined analysis results from all processed frames.
+    #     """
+
+    #     if all_frames == True: 
+    #         frames_to_process = self.dataframe[self.frame_col_name].nunique()
+    #     else:
+    #         frames_to_process = max_frames
+
+    #     num_of_parallel_process = self.cores_to_use()
+    #     futures_to_frame = {}
+
+    #     # Initialize a ProcessPoolExecutor
+    #     with ProcessPoolExecutor(max_workers = num_of_parallel_process) as executor:
+        
+    #         # Submit tasks for each frame to be processed in parallel
+    #         for frame in range(frames_to_process):
+    #             future = executor.submit(self.create_tracks_from_dataframe, self, df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
+    #                              coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
+    #                              adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted'])
+    #             futures_to_frame[future] = frame  # Map future to frame number
+
+            
+    #         frame_results = []
+    #         # Use tqdm to show progress as tasks complete
+    #         for future in tqdm(as_completed(futures_to_frame), total=frames_to_process, desc="Processing frames"):
+    #             frame = futures_to_frame[future]
+    #             try:
+    #                 # If you need the result for anything, or to catch exceptions:
+    #                 result = future.result()
+    #                 if result is not None: 
+    #                     # Append a tuple of (frame, result) to frame_results
+    #                     frame_results.append((frame, result))
+    #             except Exception as e:
+    #                 # Handle exceptions (if any) from your processed function
+    #                 print(f"Error processing frame: {e}")
+            
+    #         # Initialize an empty DataFrame
+    #         final_df = pd.DataFrame()
+
+    #         for frame, result_df in sorted(frame_results):
+    #             result_df['frame'] = frame  # Add a column with the frame number
+    #             final_df = pd.concat([final_df, result_df], ignore_index=True)
+            
+    #         # Return the combined dataframe instead of saving
+    #         return final_df
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
-                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['amplitude', 'c2_peak'], 
-                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c2_voxel_sum_adjusted']):
+                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
+                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted']):
     '''
     Create tracks from a pandas DataFrame.
 
@@ -468,6 +574,7 @@ def plot_z_sum_bd(zarr_array: zarr.array):
 
     Output: 
     1. plots graph of sum of intensity over each z slice for different frames
+    2. returns the basal and apical boundaries
     '''
 
     c1_raw = zarr_array
@@ -500,14 +607,55 @@ def plot_z_sum_bd(zarr_array: zarr.array):
     
     for i in range(len(all_frame_sum)):
         colors = ['red', 'green', 'blue', 'orange', 'pink']
-        plt.plot(x_values, all_frame_sum[i], color = colors[i], label = f'frame {times_to_plot[i]}')
+        plt.plot(x_values, all_frame_sum[i]/np.max(all_frame_sum[i]), color = colors[i], alpha = 0.5)
         # Format y-axis ticks to display whole values
     
-    plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0f}'.format(x)))
-    plt.legend()
+    # plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0f}'.format(x)))
+    # plt.legend()
+    # plt.xlabel('Z slice')
+    # plt.ylabel('Pixels sum')
+    # plt.title('Pixel sum over Z slices')
+
+    # auto-detected basal and apical boundaries by smoothing, detecting 2 peaks, and offsetting by 6 slices
+
+    all_slices_mean = np.mean(all_frame_sum, axis = 0)
+    # plt.plot(all_slices_mean/np.max(all_slices_mean))
+
+    # automatically calculate the two peaks of the averaged pixel sum to estimate the basal and apical boundaries
+
+    # or for all of all_frame_sum
+
+    # Function to find a specified number of peaks using local peak maxima
+    def find_top_n_peaks(data, num_peaks):
+        coordinates = peak_local_max(data, num_peaks=num_peaks)
+        return coordinates.flatten()
+
+    # Find peaks for mean
+
+    # smooth all_slices_mean with a kernel of size 4
+    all_slices_mean_smooth = np.convolve(all_slices_mean, np.ones(4), mode='same')
+
+    region_boundaries = find_top_n_peaks(all_slices_mean_smooth, 2)
+
+    # offset the region boundaries by 6 slices so that basal and apical regions are more fully captured
+    region_boundary_offset = 6
+
+    region_boundaries = [np.min(region_boundaries) + region_boundary_offset, np.max(region_boundaries) - region_boundary_offset]
+
+    plt.plot(all_slices_mean_smooth/np.max(all_slices_mean_smooth), label = 'Mean intensity smoothed', linewidth = 1, color = 'black')
+    # plot vertical lines at the two peak locations
+    plt.axvline(x=region_boundaries[0], color='r', linestyle='--', label = 'Basal boundary = slice ' + str(region_boundaries[0]))
+    plt.axvline(x=region_boundaries[1], color='g', linestyle='--', label = 'Apical boundary = slice ' + str(region_boundaries[1]))
+
     plt.xlabel('Z slice')
-    plt.ylabel('Pixels sum')
+    plt.ylabel('Pixel sum')
     plt.title('Pixel sum over Z slices')
+    plt.legend()
+    plt.show()
+
+    return region_boundaries
+
+    
 
 
 # Function to allocate membrane regions

@@ -22,9 +22,13 @@ def visualize_3D_gaussians(zarr_obj, gaussians_df):
     image_gaussians = np.zeros((zarr_obj.shape[2],zarr_obj.shape[3],zarr_obj.shape[4]))
 
     # Replace zero sigma values with 1
-    gaussians_df['sigma_x'] = gaussians_df['sigma_x'].replace(0, 1)
-    gaussians_df['sigma_y'] = gaussians_df['sigma_y'].replace(0, 1)
-    gaussians_df['sigma_z'] = gaussians_df['sigma_z'].replace(0, 1)
+    # gaussians_df['sigma_x'] = gaussians_df['sigma_x'].replace(0, 1)
+    # gaussians_df['sigma_y'] = gaussians_df['sigma_y'].replace(0, 1)
+    # gaussians_df['sigma_z'] = gaussians_df['sigma_z'].replace(0, 1)
+
+    gaussians_df.loc[gaussians_df['sigma_x'] == 0, 'sigma_x'] = 1
+    gaussians_df.loc[gaussians_df['sigma_y'] == 0, 'sigma_y'] = 1
+    gaussians_df.loc[gaussians_df['sigma_z'] == 0, 'sigma_z'] = 1
     
     # Extract Gaussian parameters from the DataFrame
     amplitudes = gaussians_df['amplitude'].values * 100

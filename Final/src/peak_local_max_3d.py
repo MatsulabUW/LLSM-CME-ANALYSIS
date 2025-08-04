@@ -72,21 +72,24 @@ def peak_local_max_3d(image,min_distance,threshold=0):
         maxCandidate_y = maxCandidate[0][2]
 
         maxCandidate_value = maxCandidate[1]
-        windowSizeHalf = int(min_distance/2)
+        windowSizeHalf = round(min_distance/2)
         #print(windowSizeHalf)
 
 #        print(maxCandidate_x-windowSizeHalf)
 #        prnt(windowSizeHalf)
         from_x = max(0,maxCandidate_x-windowSizeHalf)
-        to_x = min(image.shape[1],maxCandidate_x+windowSizeHalf) ##Issue here 
+        # to_x = min(image.shape[1],maxCandidate_x+windowSizeHalf) ##Issue here 
+        to_x = min(image.shape[1],maxCandidate_x+windowSizeHalf+1)
         #print(f'the image.shape[1] is {image.shape[1]} from_x is {from_x} and to_x is {to_x}')
 
         from_y = max(0,maxCandidate_y-windowSizeHalf)
-        to_y = min(image.shape[2],maxCandidate_y+windowSizeHalf) #Issue here
+        # to_y = min(image.shape[2],maxCandidate_y+windowSizeHalf) #Issue here
+        to_y = min(image.shape[2],maxCandidate_y+windowSizeHalf+1)
         #print(f'the image.shape[2] is {image.shape[2]} from_y is {from_y} and to_y is {to_y}')
 
         from_z = max(0,maxCandidate_z-windowSizeHalf)
-        to_z = min(image.shape[0],maxCandidate_z+windowSizeHalf) #Issue here
+        # to_z = min(image.shape[0],maxCandidate_z+windowSizeHalf) #Issue here
+        to_z = min(image.shape[0],maxCandidate_z+windowSizeHalf+1)
         #print(f'the image.shape[0] is {image.shape[0]} from_z is {from_z} and to_z is {to_z}')
 
         try:

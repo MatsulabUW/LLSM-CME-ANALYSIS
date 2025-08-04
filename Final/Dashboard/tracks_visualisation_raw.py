@@ -55,16 +55,18 @@ def select_tracks_region_wise(dataframe, tracks, only_basal, only_apical, only_l
 
 def select_type_of_intensity(type, voxel_sum_col_names = ['c3_voxel_sum', 'c2_voxel_sum', 'c1_voxel_sum'], 
                              adjusted_voxel_sum_col_names = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted'], 
-                             gaussian_col_names = ['c3_gaussian_amp', 'c2_gaussian_amp', 'c1_gaussian_amp'], 
-                             peak_col_names = ['c3_peak_amp', 'c2_peak_amp', 'c1_peak_amp']): 
-    if type == 'Adjusted Voxel Sum': 
+                            #  gaussian_col_names = ['c3_gaussian_amp', 'c2_gaussian_amp', 'c1_gaussian_amp'], 
+                             mean_col_names = ['c3_peak_mean', 'c2_peak_mean', 'c1_peak_mean'],
+                             peak_col_names = ['c3_peak_max', 'c2_peak_max', 'c1_peak_max']): 
+    
+    if type == 'Background subtracted sum': 
         return adjusted_voxel_sum_col_names
-    elif type == 'Voxel Sum': 
+    elif type == 'Sum': 
         return voxel_sum_col_names
-    elif type == 'Gaussian Peaks': 
-        return gaussian_col_names
-    elif type == 'Peak Intensity': 
+    elif type == 'Max Intensity': 
         return peak_col_names
+    elif type == 'Mean Intensity': 
+        return mean_col_names
 
 def max_z_track_visualisation(track_of_interest,zarr_array,main_tracking_df, channel):
     
@@ -76,7 +78,7 @@ def max_z_track_visualisation(track_of_interest,zarr_array,main_tracking_df, cha
     
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         sigma_z = 4
         sigma_y = 2
         sigma_x = 2
@@ -115,7 +117,7 @@ def total_sum_track_visualisation(track_of_interest,zarr_array,main_tracking_df,
 
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         #sigma_z, sigma_y, sigma_x = track['sigma_z'], track['sigma_y'], track['sigma_x']
         sigma_z = 4
         sigma_y = 2
@@ -152,7 +154,7 @@ def max_intensity_projection_track_visualisation(track_of_interest,zarr_array,ma
 
     # Loop through tracks and set values in the volume
     for index, track in current_track.iterrows():
-        frame, mu_z, mu_y, mu_x = int(track['frame']), track['c3_mu_z'], track['c3_mu_y'], track['c3_mu_x']
+        frame, mu_z, mu_y, mu_x = int(track['frame']), track['mu_z'], track['mu_y'], track['mu_x']
         #sigma_z, sigma_y, sigma_x = track['sigma_z'], track['sigma_y'], track['sigma_x']
         sigma_z = 4
         sigma_y = 2

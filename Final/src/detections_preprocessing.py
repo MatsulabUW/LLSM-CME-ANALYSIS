@@ -160,7 +160,56 @@ def hist_plot(dataframe: pd.DataFrame, column_name: str, bin_size: int = 1, cust
     plt.show()
     return bin_vals
     
-    
+def plot_histogram_cutoffs(spots_df,amplitude_cutoff,sigmax_cutoff,sigmay_cutoff,sigmaz_cutoff,mu_upper_cutoff,sigma_upper_cutoff):
+
+    # Assuming cleaned_spots_df is your DataFrame with columns 'Amplitude', 'sigma_x', 'sigma_y', 'sigma_z'
+
+    # Set up subplots as a 2x2 grid
+    fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(10, 10))
+
+    # Flatten the axes array for easier indexing
+    axes = axes.flatten()
+
+    # Histogram for Amplitude with bins of size 50 starting from 180
+    axes[0].hist(spots_df['amplitude'].dropna(), bins=100)
+    axes[0].axvline(amplitude_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[0].set_title('Amplitude Histogram')
+
+    # Histogram for sigma_x with bins of size 1 starting from 0
+    axes[1].hist(spots_df['sigma_x'].dropna(), bins=range(0, int(spots_df['sigma_x'].max()) + 1, 1))
+    axes[1].axvline(sigmax_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[1].set_xlim(0, 20)
+    axes[1].set_title('Sigma_x Histogram')
+
+    # Histogram for sigma_y with bins of size 1 starting from 0
+    axes[2].hist(spots_df['sigma_y'].dropna(), bins=range(0, int(spots_df['sigma_y'].max()) + 1, 1))
+    axes[2].axvline(sigmay_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[2].set_xlim(0, 20)
+    axes[2].set_title('Sigma_y Histogram')
+
+    # Histogram for sigma_z with bins of size 1 starting from 0
+    axes[3].hist(spots_df['sigma_z'].dropna(), bins=range(0, int(spots_df['sigma_z'].max()) + 1, 1))
+    axes[3].axvline(sigmaz_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[3].set_xlim(0, 20)
+    axes[3].set_title('Sigma_z Histogram')
+
+    # Histogram for mean_errors_mu with bins of size 0.01 starting from 0
+    axes[4].hist(spots_df['mean_errors_mu'].dropna(), 100)
+    axes[4].axvline(mu_upper_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[4].set_title('Mean Errors Mu Histogram')
+
+    # Histogram for mean_errors_sigma with bins of size 0.01 starting from 0
+    axes[5].hist(spots_df['mean_errors_sigma'].dropna(), bins=range(0, int(spots_df['mean_errors_sigma'].max()) + 1, 1))
+    axes[5].axvline(sigma_upper_cutoff, color='r', linestyle='dashed', linewidth=1)
+    axes[5].set_xlim(0, 20)
+    axes[5].set_title('Mean Errors Sigma Histogram')
+
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Display the plot
+    plt.show()
 
 
     
