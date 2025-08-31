@@ -1,1 +1,0 @@
-All the data generated from the pipeline will be saved here.

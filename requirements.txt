@@ -10,4 +10,5 @@ aicsimageio
 nbClassic
 aicspylibczi
 dash_bootstrap_components
+toml
 zarr

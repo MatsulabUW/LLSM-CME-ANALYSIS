@@ -1,0 +1,12 @@
+# Parameters to adjust
+
+# Detection settings
+channel_to_detect = 3
+threshold_intensity = 210
+all_frames = true
+
+# Spot analysis settings
+dist_between_spots = 6
+sigma_estimations = [4, 3, 4]
+n_jobs = -1
+number_frames_to_detect = 60

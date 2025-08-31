@@ -1,0 +1,10 @@
+# Parameters to adjust
+
+max_distance = 3 # in pixels - default: 3
+gap_size = 1 # in frames
+gap_closing_cost_tolerance = 1 # default: 1
+
+
+# set min and max z to show
+min_z = 10
+max_z = 20
