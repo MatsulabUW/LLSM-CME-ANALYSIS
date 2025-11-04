@@ -161,7 +161,8 @@ def intensity_time_plot(dataframe: pd.DataFrame, tracks_to_plot: np.ndarray, tra
         axes[row, col].set_ylabel('Intensity')
         #axes[row, col].legend()
 
-    fig.suptitle(f'{graph_title} over time', fontsize = 22, fontweight = 'bold')
+    # fig.suptitle(f'{graph_title}', fontsize = 22, fontweight = 'bold')
+    fig.suptitle(f'{graph_title}', fontsize=22, fontweight='bold', x=0.1)
 
     for i in range(channels_to_plot):
         handles.append(lines[i])
