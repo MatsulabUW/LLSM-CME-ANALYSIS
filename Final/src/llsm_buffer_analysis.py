@@ -116,162 +116,6 @@ def estimate_gaussian_amplitude_3d(frame, sigma, window_size=15):
     
     return A, c
 
-
-
-def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc', matlab_engine=None, debug=False):
-    """
-    Wrapper for MATLAB fitGaussian3D MEX function.
-
-    Parameters:
-    -----------
-    window : 3D numpy array
-        Data window to fit
-    initial_params : list
-        [x0, y0, z0, amplitude, sigma, background]
-    sigma_fixed : list
-        [sigma_xy, sigma_z] - fixed PSF values
-    fit_mode : str
-        'xyzAc' - fit position, amplitude, background
-        'Ac' - fit only amplitude and background
-        'xyAc' - fit xy position, amplitude, background (z fixed)
-    matlab_engine : matlab.engine object, optional
-        MATLAB engine instance to use
-    debug : bool, optional
-        If True, print debugging information
-
-    Returns:
-    --------
-    dict with fitted parameters and statistics
-    """
-    from scipy.stats import t as t_dist
-    
-    engine = matlab_engine if matlab_engine is not None else eng
-    if engine is None:
-        if debug:
-            print("⚠️  MATLAB engine not available, using Python fallback method")
-        return fit_gaussian_3d_python_fallback(window, initial_params, sigma_fixed, fit_mode, debug=debug)
-    
-    try:
-        # Convert numpy array to MATLAB format
-        window_transposed = np.transpose(window, (1, 2, 0))
-        window_clean = np.ascontiguousarray(window_transposed, dtype=np.float64)
-        window_matlab = matlab.double(window_clean.tolist())
-
-        # Prepare initial parameters for MATLAB
-        # MATLAB expects: [x, y, z, A, sigma_xy, sigma_z, c]
-        init_matlab = matlab.double([
-            float(initial_params[0]), float(initial_params[1]), float(initial_params[2]),
-            float(initial_params[3]), float(sigma_fixed[0]), float(sigma_fixed[1]),
-            float(initial_params[5])
-        ])
-
-        # Call MATLAB fitGaussian3D
-        result = engine.fitGaussian3D(window_matlab, init_matlab, fit_mode, nargout=4)
-
-        prm = np.array(result[0]).flatten()
-        prmStd = np.array(result[1]).flatten()
-        res = result[3]
-
-        # Extract residual statistics from MATLAB dictionary
-        try:
-            sigma_r = float(res.get('std', np.nan))
-        except (TypeError, ValueError):
-            sigma_r = np.nan
-        
-        try:
-            hval_AD_raw = res.get('hAD', np.nan)
-            hval_AD = float(hval_AD_raw) if isinstance(hval_AD_raw, bool) else float(hval_AD_raw)
-        except (TypeError, ValueError):
-            hval_AD = np.nan
-
-        # Calculate p-value for amplitude significance
-        npx = np.sum(~np.isnan(window.flatten()))
-        
-        if np.isnan(sigma_r) or sigma_r == 0:
-            se_sigma_r = np.nan
-            se_r = np.nan
-        else:
-            se_sigma_r = sigma_r / np.sqrt(2 * (npx - 1))
-            se_r = se_sigma_r * K_LEVEL
-        
-        if debug:
-            print(f"npx: {npx}, sigma_r: {sigma_r}, se_sigma_r: {se_sigma_r}")
-
-        # Extract parameters from correct indices based on fit_mode
-        if fit_mode == 'xyzAc':
-            # Full fit returns 7 parameters: [x, y, z, A, sigma_xy, sigma_z, c]
-            x = prm[0]
-            y = prm[1]
-            z = prm[2]
-            A = prm[3]
-            c = prm[6]  # Background is at index 6
-            
-            # Uncertainties for position fit
-            A_pstd = prmStd[3]
-            c_pstd = prmStd[4]
-            
-        elif fit_mode == 'Ac':
-            # Amplitude-only fit returns 2 parameters: [A, c]
-            A = prm[0]
-            c = prm[1]
-            
-            # Use initial positions
-            x = initial_params[0]
-            y = initial_params[1]
-            z = initial_params[2]
-            
-            # Uncertainties for amplitude-only fit
-            A_pstd = prmStd[0]
-            c_pstd = prmStd[1]
-        
-        elif fit_mode == 'xyAc':
-            # XY position refinement returns 6 parameters: [x, y, A, sigma_xy, sigma_z, c]
-            x = prm[0]
-            y = prm[1]
-            z = initial_params[2]  # Z is FIXED
-            A = prm[2]
-            c = prm[5]  # Background is at index 5
-            
-            # Uncertainties
-            A_pstd = prmStd[2]
-            c_pstd = prmStd[3]
-        
-        else:
-            raise ValueError(f"Unknown fit_mode: {fit_mode}. Must be 'xyzAc', 'Ac', or 'xyAc'")
-
-        df2 = (npx - 1) * (A_pstd**2 + se_r**2)**2 / (A_pstd**4 + se_r**4)
-        scomb = np.sqrt((A_pstd**2 + se_r**2) / npx)
-        T = (A - sigma_r * K_LEVEL) / scomb
-        pval_Ar = t_dist.cdf(-T, df2)
-
-        if debug:
-            print(f"✓ MATLAB fitting ({fit_mode}) succeeded: A={A:.2f}, c={c:.2f}, sigma_r={sigma_r:.4f}, pval_Ar={pval_Ar:.4f}")
-
-        return {
-            'x': x,
-            'y': y,
-            'z': z,
-            'A': A,
-            'sigma_xy': sigma_fixed[0],
-            'sigma_z': sigma_fixed[1],
-            'c': c,
-            'A_pstd': A_pstd,
-            'c_pstd': c_pstd,
-            'sigma_r': sigma_r,
-            'SE_sigma_r': se_sigma_r,
-            'pval_Ar': pval_Ar,
-            'hval_AD': hval_AD,
-            'npx': npx
-        }
-
-    except Exception as e:
-        if debug:
-            print(f"✗ MATLAB fitGaussian3D failed with error: {e}")
-            print(f"   Attempting Python fallback...")
-        return fit_gaussian_3d_python_fallback(window, initial_params, sigma_fixed, fit_mode, debug=debug)
-
-
-
 # def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc', matlab_engine=None, debug=False):
 #     """
 #     Wrapper for MATLAB fitGaussian3D MEX function.
@@ -287,6 +131,7 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #     fit_mode : str
 #         'xyzAc' - fit position, amplitude, background
 #         'Ac' - fit only amplitude and background
+#         'xyAc' - fit xy position, amplitude, background (z fixed)
 #     matlab_engine : matlab.engine object, optional
 #         MATLAB engine instance to use
 #     debug : bool, optional
@@ -296,6 +141,8 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #     --------
 #     dict with fitted parameters and statistics
 #     """
+#     from scipy.stats import t as t_dist
+    
 #     engine = matlab_engine if matlab_engine is not None else eng
 #     if engine is None:
 #         if debug:
@@ -304,14 +151,12 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
     
 #     try:
 #         # Convert numpy array to MATLAB format
-#         # Need to ensure window is contiguous and in the right order for MATLAB
-#         window_transposed = np.transpose(window, (1, 2, 0)) #### This is the most critical part, check indexing ####
+#         window_transposed = np.transpose(window, (1, 2, 0))
 #         window_clean = np.ascontiguousarray(window_transposed, dtype=np.float64)
 #         window_matlab = matlab.double(window_clean.tolist())
 
 #         # Prepare initial parameters for MATLAB
 #         # MATLAB expects: [x, y, z, A, sigma_xy, sigma_z, c]
-#         # Ensure all values are float
 #         init_matlab = matlab.double([
 #             float(initial_params[0]), float(initial_params[1]), float(initial_params[2]),
 #             float(initial_params[3]), float(sigma_fixed[0]), float(sigma_fixed[1]),
@@ -319,17 +164,13 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #         ])
 
 #         # Call MATLAB fitGaussian3D
-#         # Returns: [prm, prmStd, C, res]
 #         result = engine.fitGaussian3D(window_matlab, init_matlab, fit_mode, nargout=4)
 
 #         prm = np.array(result[0]).flatten()
 #         prmStd = np.array(result[1]).flatten()
 #         res = result[3]
 
-#         # ===================================================================
-#         # FIX 1: Extract residual statistics from MATLAB dictionary
-#         # ===================================================================
-#         # res is a dict with keys: 'data', 'hAD', 'mean', 'std', 'RSS'
+#         # Extract residual statistics from MATLAB dictionary
 #         try:
 #             sigma_r = float(res.get('std', np.nan))
 #         except (TypeError, ValueError):
@@ -337,16 +178,14 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
         
 #         try:
 #             hval_AD_raw = res.get('hAD', np.nan)
-#             # hAD is boolean (True/False), convert to float
 #             hval_AD = float(hval_AD_raw) if isinstance(hval_AD_raw, bool) else float(hval_AD_raw)
 #         except (TypeError, ValueError):
 #             hval_AD = np.nan
 
 #         # Calculate p-value for amplitude significance
-#         npx = np.sum(~np.isnan(window.flatten())) #### Does this value match the Aguet MATLAB code? ####
+#         npx = np.sum(~np.isnan(window.flatten()))
         
 #         if np.isnan(sigma_r) or sigma_r == 0:
-#             # If sigma_r is invalid, we can't calculate statistics
 #             se_sigma_r = np.nan
 #             se_r = np.nan
 #         else:
@@ -356,27 +195,20 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #         if debug:
 #             print(f"npx: {npx}, sigma_r: {sigma_r}, se_sigma_r: {se_sigma_r}")
 
-#         # ===================================================================
-#         # FIX 2: Extract parameters from correct indices
-#         # ===================================================================
-#         # MATLAB returns different formats depending on fit_mode:
-#         # - 'xyzAc': [x, y, z, A, sigma_xy, sigma_z, c] - 7 values
-#         # - 'Ac': [A, c] - 2 values
-        
+#         # Extract parameters from correct indices based on fit_mode
 #         if fit_mode == 'xyzAc':
 #             # Full fit returns 7 parameters: [x, y, z, A, sigma_xy, sigma_z, c]
 #             x = prm[0]
 #             y = prm[1]
 #             z = prm[2]
 #             A = prm[3]
-#             # prm[4] and prm[5] are sigma_xy and sigma_z (we already know these)
-#             c = prm[6]  # ✅ Background is at index 6, not 4!
+#             c = prm[6]  # Background is at index 6
             
 #             # Uncertainties for position fit
 #             A_pstd = prmStd[3]
 #             c_pstd = prmStd[4]
             
-#         else:  # fit_mode == 'Ac'
+#         elif fit_mode == 'Ac':
 #             # Amplitude-only fit returns 2 parameters: [A, c]
 #             A = prm[0]
 #             c = prm[1]
@@ -389,6 +221,21 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #             # Uncertainties for amplitude-only fit
 #             A_pstd = prmStd[0]
 #             c_pstd = prmStd[1]
+        
+#         elif fit_mode == 'xyAc':
+#             # XY position refinement returns 6 parameters: [x, y, A, sigma_xy, sigma_z, c]
+#             x = prm[0]
+#             y = prm[1]
+#             z = initial_params[2]  # Z is FIXED
+#             A = prm[2]
+#             c = prm[5]  # Background is at index 5
+            
+#             # Uncertainties
+#             A_pstd = prmStd[2]
+#             c_pstd = prmStd[3]
+        
+#         else:
+#             raise ValueError(f"Unknown fit_mode: {fit_mode}. Must be 'xyzAc', 'Ac', or 'xyAc'")
 
 #         df2 = (npx - 1) * (A_pstd**2 + se_r**2)**2 / (A_pstd**4 + se_r**4)
 #         scomb = np.sqrt((A_pstd**2 + se_r**2) / npx)
@@ -396,7 +243,7 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #         pval_Ar = t_dist.cdf(-T, df2)
 
 #         if debug:
-#             print(f"✓ MATLAB fitting succeeded: A={A:.2f}, c={c:.2f}, sigma_r={sigma_r:.4f}, pval_Ar={pval_Ar:.4f}")
+#             print(f"✓ MATLAB fitting ({fit_mode}) succeeded: A={A:.2f}, c={c:.2f}, sigma_r={sigma_r:.4f}, pval_Ar={pval_Ar:.4f}")
 
 #         return {
 #             'x': x,
@@ -420,6 +267,157 @@ def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc'
 #             print(f"✗ MATLAB fitGaussian3D failed with error: {e}")
 #             print(f"   Attempting Python fallback...")
 #         return fit_gaussian_3d_python_fallback(window, initial_params, sigma_fixed, fit_mode, debug=debug)
+
+
+
+def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc', matlab_engine=None, debug=False):
+    """
+    Wrapper for MATLAB fitGaussian3D MEX function.
+
+    Parameters:
+    -----------
+    window : 3D numpy array
+        Data window to fit
+    initial_params : list
+        [x0, y0, z0, amplitude, sigma, background]
+    sigma_fixed : list
+        [sigma_xy, sigma_z] - fixed PSF values
+    fit_mode : str
+        'xyzAc' - fit position, amplitude, background
+        'Ac' - fit only amplitude and background
+    matlab_engine : matlab.engine object, optional
+        MATLAB engine instance to use
+    debug : bool, optional
+        If True, print debugging information
+
+    Returns:
+    --------
+    dict with fitted parameters and statistics
+    """
+    engine = matlab_engine if matlab_engine is not None else eng
+    if engine is None:
+        if debug:
+            print("⚠️  MATLAB engine not available, using Python fallback method")
+        return fit_gaussian_3d_python_fallback(window, initial_params, sigma_fixed, fit_mode, debug=debug)
+    
+    try:
+        # Convert numpy array to MATLAB format
+        # Need to ensure window is contiguous and in the right order for MATLAB
+        window_transposed = np.transpose(window, (1, 2, 0)) #### This is the most critical part, check indexing ####
+        window_clean = np.ascontiguousarray(window_transposed, dtype=np.float64)
+        window_matlab = matlab.double(window_clean.tolist())
+
+        # Prepare initial parameters for MATLAB
+        # MATLAB expects: [x, y, z, A, sigma_xy, sigma_z, c]
+        # Ensure all values are float
+        init_matlab = matlab.double([
+            float(initial_params[0]), float(initial_params[1]), float(initial_params[2]),
+            float(initial_params[3]), float(sigma_fixed[0]), float(sigma_fixed[1]),
+            float(initial_params[5])
+        ])
+
+        # Call MATLAB fitGaussian3D
+        # Returns: [prm, prmStd, C, res]
+        result = engine.fitGaussian3D(window_matlab, init_matlab, fit_mode, nargout=4)
+
+        prm = np.array(result[0]).flatten()
+        prmStd = np.array(result[1]).flatten()
+        res = result[3]
+
+        # ===================================================================
+        # FIX 1: Extract residual statistics from MATLAB dictionary
+        # ===================================================================
+        # res is a dict with keys: 'data', 'hAD', 'mean', 'std', 'RSS'
+        try:
+            sigma_r = float(res.get('std', np.nan))
+        except (TypeError, ValueError):
+            sigma_r = np.nan
+        
+        try:
+            hval_AD_raw = res.get('hAD', np.nan)
+            # hAD is boolean (True/False), convert to float
+            hval_AD = float(hval_AD_raw) if isinstance(hval_AD_raw, bool) else float(hval_AD_raw)
+        except (TypeError, ValueError):
+            hval_AD = np.nan
+
+        # Calculate p-value for amplitude significance
+        npx = np.sum(~np.isnan(window.flatten())) #### Does this value match the Aguet MATLAB code? ####
+        
+        if np.isnan(sigma_r) or sigma_r == 0:
+            # If sigma_r is invalid, we can't calculate statistics
+            se_sigma_r = np.nan
+            se_r = np.nan
+        else:
+            se_sigma_r = sigma_r / np.sqrt(2 * (npx - 1))
+            se_r = se_sigma_r * K_LEVEL
+        
+        if debug:
+            print(f"npx: {npx}, sigma_r: {sigma_r}, se_sigma_r: {se_sigma_r}")
+
+        # ===================================================================
+        # FIX 2: Extract parameters from correct indices
+        # ===================================================================
+        # MATLAB returns different formats depending on fit_mode:
+        # - 'xyzAc': [x, y, z, A, sigma_xy, sigma_z, c] - 7 values
+        # - 'Ac': [A, c] - 2 values
+        
+        if fit_mode == 'xyzAc':
+            # Full fit returns 7 parameters: [x, y, z, A, sigma_xy, sigma_z, c]
+            x = prm[0]
+            y = prm[1]
+            z = prm[2]
+            A = prm[3]
+            # prm[4] and prm[5] are sigma_xy and sigma_z (we already know these)
+            c = prm[6]  # ✅ Background is at index 6, not 4!
+            
+            # Uncertainties for position fit
+            A_pstd = prmStd[3]
+            c_pstd = prmStd[4]
+            
+        else:  # fit_mode == 'Ac'
+            # Amplitude-only fit returns 2 parameters: [A, c]
+            A = prm[0]
+            c = prm[1]
+            
+            # Use initial positions
+            x = initial_params[0]
+            y = initial_params[1]
+            z = initial_params[2]
+            
+            # Uncertainties for amplitude-only fit
+            A_pstd = prmStd[0]
+            c_pstd = prmStd[1]
+
+        df2 = (npx - 1) * (A_pstd**2 + se_r**2)**2 / (A_pstd**4 + se_r**4)
+        scomb = np.sqrt((A_pstd**2 + se_r**2) / npx)
+        T = (A - sigma_r * K_LEVEL) / scomb
+        pval_Ar = t_dist.cdf(-T, df2)
+
+        if debug:
+            print(f"✓ MATLAB fitting succeeded: A={A:.2f}, c={c:.2f}, sigma_r={sigma_r:.4f}, pval_Ar={pval_Ar:.4f}")
+
+        return {
+            'x': x,
+            'y': y,
+            'z': z,
+            'A': A,
+            'sigma_xy': sigma_fixed[0],
+            'sigma_z': sigma_fixed[1],
+            'c': c,
+            'A_pstd': A_pstd,
+            'c_pstd': c_pstd,
+            'sigma_r': sigma_r,
+            'SE_sigma_r': se_sigma_r,
+            'pval_Ar': pval_Ar,
+            'hval_AD': hval_AD,
+            'npx': npx
+        }
+
+    except Exception as e:
+        if debug:
+            print(f"✗ MATLAB fitGaussian3D failed with error: {e}")
+            print(f"   Attempting Python fallback...")
+        return fit_gaussian_3d_python_fallback(window, initial_params, sigma_fixed, fit_mode, debug=debug)
 
 # def fit_gaussian_3d_matlab(window, initial_params, sigma_fixed, fit_mode='xyzAc', matlab_engine=None, debug=False):
 #     """
@@ -1810,6 +1808,439 @@ def get_track_intensity_profiles(track_fits, channel_idx):
         }
     
     return profiles
+
+
+"""
+Multi-scale Gaussian Fitting for AP2 and DNM2 Channels
+Performs Ac-mode fitting at multiple sigma values and selects best fit based on significance.
+Designed to work between notebooks 2 and 3 in the LLSM analysis pipeline.
+"""
+
+import numpy as np
+import pandas as pd
+import zarr
+from tqdm import tqdm
+import warnings
+warnings.filterwarnings('ignore')
+
+# Import from existing codebase
+from llsm_buffer_analysis import (
+    fit_gaussian_3d_matlab,
+    estimate_gaussian_amplitude_3d,
+    K_LEVEL,
+    eng  # MATLAB engine
+)
+
+
+def fit_spot_multiscale(frame, x, y, z, sigma_values, fit_mode='Ac', 
+                        p_threshold=0.05, labels=None, debug=False):
+    """
+    Fit a 3D Gaussian at multiple sigma scales and select the best fit.
+    
+    Selection criteria (in order):
+    1. Fits with p-value < p_threshold (significant)
+    2. Among significant fits, choose lowest p-value
+    3. If multiple sigmas have same p-value, average A and c
+    
+    Parameters:
+    -----------
+    frame : 3D numpy array
+        Image data [z, y, x]
+    x, y, z : float
+        Center position for fitting
+    sigma_values : list of float or list of [sigma_xy, sigma_z]
+        Sigma values to test (e.g., [1.25, 1.75, 2.25])
+    fit_mode : str, default='Ac'
+        Fitting mode ('Ac' for amplitude/background only)
+    p_threshold : float, default=0.05
+        Significance threshold for fit selection
+    labels : 3D array, optional
+        Label mask to exclude nearby objects
+    debug : bool, default=False
+        If True, print debugging information
+        
+    Returns:
+    --------
+    dict or None
+        Best fit results with keys: 'x', 'y', 'z', 'A', 'c', 'A_pstd', 'c_pstd',
+        'sigma_xy', 'sigma_z', 'pval_Ar', 'sigma_r', 'selected_sigma', 'n_averaged'
+        Returns None if all fits fail
+    """
+    
+    nz, ny, nx = frame.shape
+    
+    # Convert to integer coordinates for windowing
+    xi = int(np.round(np.clip(x, 0, nx-1)))
+    yi = int(np.round(np.clip(y, 0, ny-1)))
+    zi = int(np.round(np.clip(z, 0, nz-1)))
+    
+    # Storage for all fits
+    all_fits = []
+    
+    # Try each sigma value
+    for sigma in sigma_values:
+        # Convert sigma to [sigma_xy, sigma_z] format if scalar
+        if np.isscalar(sigma):
+            sigma_list = [sigma, sigma * 1.5]  # Assume z is 1.5x wider
+        else:
+            sigma_list = list(sigma)
+        
+        # Define window boundaries (±2σ)
+        w2x = int(np.ceil(2 * sigma_list[0]))
+        w2z = int(np.ceil(2 * sigma_list[1]))
+        
+        # Extract window with boundary checking
+        xa = slice(max(0, xi-w2x), min(nx, xi+w2x+1))
+        ya = slice(max(0, yi-w2x), min(ny, yi+w2x+1))
+        za = slice(max(0, zi-w2z), min(nz, zi+w2z+1))
+        
+        window = frame[za, ya, xa].copy()
+        
+        # Apply label mask if provided
+        if labels is not None:
+            mask_window = labels[za, ya, xa]
+            center_z = min(zi-max(0, zi-w2z), mask_window.shape[0]-1)
+            center_y = min(yi-max(0, yi-w2x), mask_window.shape[1]-1)
+            center_x = min(xi-max(0, xi-w2x), mask_window.shape[2]-1)
+            center_label = mask_window[center_z, center_y, center_x]
+            window[np.logical_and(mask_window != 0, mask_window != center_label)] = np.nan
+        
+        # Relative coordinates in window
+        ox = xi - max(0, xi-w2x)
+        oy = yi - max(0, yi-w2x)
+        oz = zi - max(0, zi-w2z)
+        
+        # Estimate initial parameters
+        A_est, c_est = estimate_gaussian_amplitude_3d(window, sigma_list[0], window_size=5)
+        ai = A_est[oz, oy, ox] if not np.isnan(A_est[oz, oy, ox]) else np.nanmax(window)
+        ci = c_est[oz, oy, ox] if not np.isnan(c_est[oz, oy, ox]) else np.nanmin(window)
+        
+        # Initial parameters: [x, y, z, A, sigma, c]
+        initial_params = [ox, oy, oz, ai, sigma_list[0], ci]
+        
+        # Perform Gaussian fit
+        fit_result = fit_gaussian_3d_matlab(
+            window,
+            initial_params,
+            sigma_list,
+            fit_mode=fit_mode,
+            debug=debug
+        )
+        
+        if fit_result is not None:
+            # Convert to global coordinates
+            fit_result['x'] = x  # Keep original center for Ac mode
+            fit_result['y'] = y
+            fit_result['z'] = z
+            fit_result['sigma_xy'] = sigma_list[0]
+            fit_result['sigma_z'] = sigma_list[1]
+            fit_result['selected_sigma'] = sigma
+            
+            all_fits.append(fit_result)
+    
+    # No successful fits
+    if len(all_fits) == 0:
+        return None
+    
+    # Select best fit based on significance and p-value
+    significant_fits = [f for f in all_fits if f['pval_Ar'] < p_threshold]
+    
+    if len(significant_fits) == 0:
+        # No significant fits - choose lowest p-value among all
+        best_fit = min(all_fits, key=lambda f: f['pval_Ar'])
+        best_fit['n_averaged'] = 1
+        return best_fit
+    
+    # Find minimum p-value among significant fits
+    min_pval = min(f['pval_Ar'] for f in significant_fits)
+    
+    # Get all fits with minimum p-value (handles ties)
+    best_fits = [f for f in significant_fits if abs(f['pval_Ar'] - min_pval) < 1e-10]
+    
+    if len(best_fits) == 1:
+        best_fits[0]['n_averaged'] = 1
+        return best_fits[0]
+    
+    # Multiple fits with same p-value - average A and c
+    avg_fit = best_fits[0].copy()
+    avg_fit['A'] = np.mean([f['A'] for f in best_fits])
+    avg_fit['c'] = np.mean([f['c'] for f in best_fits])
+    avg_fit['A_pstd'] = np.mean([f['A_pstd'] for f in best_fits])
+    avg_fit['c_pstd'] = np.mean([f['c_pstd'] for f in best_fits])
+    avg_fit['sigma_r'] = np.mean([f['sigma_r'] for f in best_fits])
+    avg_fit['n_averaged'] = len(best_fits)
+    avg_fit['selected_sigma'] = 'averaged'
+    
+    return avg_fit
+
+
+def fit_ap2_and_dnm2_multiscale(df_with_dnm2, zarr_data,
+                                ap2_channel_idx=2,
+                                dnm2_channel_idx=1,
+                                sigma_values=[1.25, 1.75, 2.25],
+                                p_threshold=0.05,
+                                verbose=True):
+    """
+    Perform multi-scale Gaussian fitting for AP2 and DNM2 channels.
+    
+    Fitting strategy:
+    - AP2 channel: Fit at AP2 spot centers
+    - DNM2 channel (DNM2+ spots): Fit at DNM2 centers
+    - DNM2 channel (DNM2- spots): Fit at AP2 centers
+    
+    For each spot, fits are performed at multiple sigma values and the best
+    fit is selected based on significance (p < 0.05) and lowest p-value.
+    
+    Parameters:
+    -----------
+    df_with_dnm2 : pandas DataFrame
+        Output from find_dnm2_at_ap2_positions() with columns:
+        ['mu_x', 'mu_y', 'mu_z', 'frame', 'track_id', 'dnm2_positive', 
+         'dnm2_mu_x', 'dnm2_mu_y', 'dnm2_mu_z', ...]
+    zarr_data : zarr array
+        Movie data with shape [t, c, z, y, x]
+    ap2_channel_idx : int, default=2
+        AP2 channel index (0-based, channel 3 = index 2)
+    dnm2_channel_idx : int, default=1
+        DNM2 channel index (0-based, channel 2 = index 1)
+    sigma_values : list, default=[1.25, 1.75, 2.25]
+        Sigma values to test for each fit (detection scales)
+    p_threshold : float, default=0.05
+        Significance threshold for fit selection
+    verbose : bool, default=True
+        If True, show progress bars and print summary
+        
+    Returns:
+    --------
+    pandas DataFrame
+        df_with_dnm2 with added columns for each channel:
+        
+        AP2 channel (c3_*):
+        - c3_A, c3_c: Amplitude and background
+        - c3_A_pstd, c3_c_pstd: Uncertainties
+        - c3_sigma_r: Residual std
+        - c3_pval_Ar: P-value for significance
+        - c3_sigma_xy, c3_sigma_z: Selected PSF sigma
+        - c3_selected_sigma: Which sigma was selected
+        - c3_n_averaged: Number of sigmas averaged (if tied)
+        
+        DNM2 channel (c2_*):
+        - c2_A, c2_c: Amplitude and background
+        - c2_A_pstd, c2_c_pstd: Uncertainties
+        - c2_sigma_r: Residual std
+        - c2_pval_Ar: P-value for significance
+        - c2_sigma_xy, c2_sigma_z: Selected PSF sigma
+        - c2_selected_sigma: Which sigma was selected
+        - c2_n_averaged: Number of sigmas averaged (if tied)
+        - c2_fit_center: 'dnm2' or 'ap2' (which center was used)
+    """
+    
+    if verbose:
+        print("="*70)
+        print("MULTI-SCALE GAUSSIAN FITTING (Ac MODE)")
+        print("="*70)
+        print(f"AP2 channel: Channel {ap2_channel_idx + 1}")
+        print(f"DNM2 channel: Channel {dnm2_channel_idx + 1}")
+        print(f"Sigma values to test: {sigma_values}")
+        print(f"Significance threshold: p < {p_threshold}")
+        print(f"Total spots to process: {len(df_with_dnm2)}")
+        print("="*70 + "\n")
+    
+    # Create copy to avoid modifying original
+    result_df = df_with_dnm2.copy()
+    
+    # Initialize AP2 channel columns
+    ap2_ch = ap2_channel_idx + 1
+    result_df[f'c{ap2_ch}_A'] = np.nan
+    result_df[f'c{ap2_ch}_c'] = np.nan
+    result_df[f'c{ap2_ch}_A_pstd'] = np.nan
+    result_df[f'c{ap2_ch}_c_pstd'] = np.nan
+    result_df[f'c{ap2_ch}_sigma_r'] = np.nan
+    result_df[f'c{ap2_ch}_pval_Ar'] = np.nan
+    result_df[f'c{ap2_ch}_sigma_xy'] = np.nan
+    result_df[f'c{ap2_ch}_sigma_z'] = np.nan
+    result_df[f'c{ap2_ch}_selected_sigma'] = pd.Series(dtype='object')
+    result_df[f'c{ap2_ch}_n_averaged'] = 0
+    
+    # Initialize DNM2 channel columns
+    dnm2_ch = dnm2_channel_idx + 1
+    result_df[f'c{dnm2_ch}_A'] = np.nan
+    result_df[f'c{dnm2_ch}_c'] = np.nan
+    result_df[f'c{dnm2_ch}_A_pstd'] = np.nan
+    result_df[f'c{dnm2_ch}_c_pstd'] = np.nan
+    result_df[f'c{dnm2_ch}_sigma_r'] = np.nan
+    result_df[f'c{dnm2_ch}_pval_Ar'] = np.nan
+    result_df[f'c{dnm2_ch}_sigma_xy'] = np.nan
+    result_df[f'c{dnm2_ch}_sigma_z'] = np.nan
+    result_df[f'c{dnm2_ch}_selected_sigma'] = pd.Series(dtype='object')
+    result_df[f'c{dnm2_ch}_n_averaged'] = 0
+    result_df[f'c{dnm2_ch}_fit_center'] = ''  # 'dnm2' or 'ap2'
+    
+    # Build frame-to-rows mapping
+    if verbose:
+        print("Building frame-to-spots mapping...")
+    
+    frame_to_rows = {}
+    for idx, row in result_df.iterrows():
+        frame_idx = int(row['frame'])
+        if frame_idx not in frame_to_rows:
+            frame_to_rows[frame_idx] = []
+        frame_to_rows[frame_idx].append(idx)
+    
+    if verbose:
+        print(f"  Mapped {len(frame_to_rows)} frames\n")
+    
+    # Counters for statistics
+    n_ap2_success = 0
+    n_ap2_fail = 0
+    n_dnm2_success = 0
+    n_dnm2_fail = 0
+    
+    # Process frame by frame
+    frames_to_process = sorted(frame_to_rows.keys())
+    
+    for frame_idx in tqdm(frames_to_process, desc="Fitting gaussians", disable=not verbose):
+        # Load frame data ONCE for all channels
+        frame_data = zarr_data[frame_idx]  # Shape: [c, z, y, x]
+        
+        ap2_frame = frame_data[ap2_channel_idx]
+        dnm2_frame = frame_data[dnm2_channel_idx]
+        
+        # Get all spots in this frame
+        row_indices = frame_to_rows[frame_idx]
+        
+        # Process each spot
+        for row_idx in row_indices:
+            row = result_df.loc[row_idx]
+            
+            # Get AP2 position
+            x_ap2 = row['mu_x']
+            y_ap2 = row['mu_y']
+            z_ap2 = row['mu_z']
+            
+            # ================================================================
+            # FIT AP2 CHANNEL at AP2 center
+            # ================================================================
+            ap2_fit = fit_spot_multiscale(
+                ap2_frame,
+                x_ap2, y_ap2, z_ap2,
+                sigma_values=sigma_values,
+                fit_mode='Ac',
+                p_threshold=p_threshold,
+                labels=None,
+                debug=False
+            )
+            
+            if ap2_fit is not None:
+                n_ap2_success += 1
+                result_df.loc[row_idx, f'c{ap2_ch}_A'] = ap2_fit['A']
+                result_df.loc[row_idx, f'c{ap2_ch}_c'] = ap2_fit['c']
+                result_df.loc[row_idx, f'c{ap2_ch}_A_pstd'] = ap2_fit['A_pstd']
+                result_df.loc[row_idx, f'c{ap2_ch}_c_pstd'] = ap2_fit['c_pstd']
+                result_df.loc[row_idx, f'c{ap2_ch}_sigma_r'] = ap2_fit['sigma_r']
+                result_df.loc[row_idx, f'c{ap2_ch}_pval_Ar'] = ap2_fit['pval_Ar']
+                result_df.loc[row_idx, f'c{ap2_ch}_sigma_xy'] = ap2_fit['sigma_xy']
+                result_df.loc[row_idx, f'c{ap2_ch}_sigma_z'] = ap2_fit['sigma_z']
+                result_df.loc[row_idx, f'c{ap2_ch}_selected_sigma'] = ap2_fit['selected_sigma']
+                result_df.loc[row_idx, f'c{ap2_ch}_n_averaged'] = ap2_fit['n_averaged']
+            else:
+                n_ap2_fail += 1
+            
+            # ================================================================
+            # FIT DNM2 CHANNEL
+            # ================================================================
+            # Determine fit center based on DNM2 detection status
+            is_dnm2_positive = row['dnm2_positive']
+            
+            if is_dnm2_positive:
+                # Check if DNM2 coordinates are valid (not 'two_spots')
+                dnm2_x = row['dnm2_mu_x']
+                dnm2_y = row['dnm2_mu_y']
+                dnm2_z = row['dnm2_mu_z']
+                
+                if dnm2_x == 'two_spots':
+                    # Equidistant case - use AP2 center
+                    x_fit = x_ap2
+                    y_fit = y_ap2
+                    z_fit = z_ap2
+                    fit_center = 'ap2_equidistant'
+                else:
+                    # Use DNM2 center
+                    x_fit = dnm2_x
+                    y_fit = dnm2_y
+                    z_fit = dnm2_z
+                    fit_center = 'dnm2'
+            else:
+                # DNM2-negative - use AP2 center
+                x_fit = x_ap2
+                y_fit = y_ap2
+                z_fit = z_ap2
+                fit_center = 'ap2'
+            
+            # Perform DNM2 channel fit
+            dnm2_fit = fit_spot_multiscale(
+                dnm2_frame,
+                x_fit, y_fit, z_fit,
+                sigma_values=sigma_values,
+                fit_mode='Ac',
+                p_threshold=p_threshold,
+                labels=None,
+                debug=False
+            )
+            
+            if dnm2_fit is not None:
+                n_dnm2_success += 1
+                result_df.loc[row_idx, f'c{dnm2_ch}_A'] = dnm2_fit['A']
+                result_df.loc[row_idx, f'c{dnm2_ch}_c'] = dnm2_fit['c']
+                result_df.loc[row_idx, f'c{dnm2_ch}_A_pstd'] = dnm2_fit['A_pstd']
+                result_df.loc[row_idx, f'c{dnm2_ch}_c_pstd'] = dnm2_fit['c_pstd']
+                result_df.loc[row_idx, f'c{dnm2_ch}_sigma_r'] = dnm2_fit['sigma_r']
+                result_df.loc[row_idx, f'c{dnm2_ch}_pval_Ar'] = dnm2_fit['pval_Ar']
+                result_df.loc[row_idx, f'c{dnm2_ch}_sigma_xy'] = dnm2_fit['sigma_xy']
+                result_df.loc[row_idx, f'c{dnm2_ch}_sigma_z'] = dnm2_fit['sigma_z']
+                result_df.loc[row_idx, f'c{dnm2_ch}_selected_sigma'] = dnm2_fit['selected_sigma']
+                result_df.loc[row_idx, f'c{dnm2_ch}_n_averaged'] = dnm2_fit['n_averaged']
+                result_df.loc[row_idx, f'c{dnm2_ch}_fit_center'] = fit_center
+            else:
+                n_dnm2_fail += 1
+                result_df.loc[row_idx, f'c{dnm2_ch}_fit_center'] = fit_center
+    
+    # Print summary statistics
+    if verbose:
+        total_spots = len(result_df)
+        print("\n" + "="*70)
+        print("FITTING SUMMARY")
+        print("="*70)
+        print(f"\nAP2 Channel (c{ap2_ch}):")
+        print(f"  Successful fits: {n_ap2_success}/{total_spots} ({100*n_ap2_success/total_spots:.1f}%)")
+        print(f"  Failed fits: {n_ap2_fail}/{total_spots} ({100*n_ap2_fail/total_spots:.1f}%)")
+        
+        print(f"\nDNM2 Channel (c{dnm2_ch}):")
+        print(f"  Successful fits: {n_dnm2_success}/{total_spots} ({100*n_dnm2_success/total_spots:.1f}%)")
+        print(f"  Failed fits: {n_dnm2_fail}/{total_spots} ({100*n_dnm2_fail/total_spots:.1f}%)")
+        
+        # Sigma selection statistics for successful fits
+        if n_ap2_success > 0:
+            sigma_counts = result_df[result_df[f'c{ap2_ch}_A'].notna()][f'c{ap2_ch}_selected_sigma'].value_counts()
+            print(f"\nAP2 Sigma selection:")
+            for sigma, count in sigma_counts.items():
+                print(f"  σ = {sigma}: {count} ({100*count/n_ap2_success:.1f}%)")
+        
+        if n_dnm2_success > 0:
+            sigma_counts = result_df[result_df[f'c{dnm2_ch}_A'].notna()][f'c{dnm2_ch}_selected_sigma'].value_counts()
+            print(f"\nDNM2 Sigma selection:")
+            for sigma, count in sigma_counts.items():
+                print(f"  σ = {sigma}: {count} ({100*count/n_dnm2_success:.1f}%)")
+            
+            # Fit center statistics
+            center_counts = result_df[result_df[f'c{dnm2_ch}_A'].notna()][f'c{dnm2_ch}_fit_center'].value_counts()
+            print(f"\nDNM2 Fit center used:")
+            for center, count in center_counts.items():
+                print(f"  {center}: {count} ({100*count/n_dnm2_success:.1f}%)")
+        
+        print("="*70 + "\n")
+    
+    return result_df
 
 
 # ============================================================================
