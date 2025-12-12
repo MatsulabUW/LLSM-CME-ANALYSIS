@@ -100,7 +100,7 @@ class Extractor:
         radius_y = self.radii[1]
         radius_x = self.radii[2]
         
-        for frame in range(frames): 
+        for frame in self.dataframe[self.frame_col_name].unique():
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -169,7 +169,7 @@ class Extractor:
         voxel_sum_array = []
         pixel_values = []
         
-        for frame in range(frames): 
+        for frame in self.dataframe[self.frame_col_name].unique():
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -253,8 +253,8 @@ class Extractor:
         max_x = self.x
         
         
-        for frame in range(frames):
-            current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
+        for frame in self.dataframe[self.frame_col_name].unique():
+            current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
             
             for i in range(len(current_df)):
@@ -356,8 +356,8 @@ class Extractor:
         radius_x = self.radii[2]
         
         
-        for frame in range(frames):
-            current_df = self.dataframe[self.dataframe['frame'] == frame].reset_index()
+        for frame in self.dataframe[self.frame_col_name].unique():
+            current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
             
             for i in range(len(current_df)):
@@ -651,7 +651,7 @@ class Extractor:
         # volume_signal = (1+2*radius_z) * (1+2*radius_y) * (1+2*radius_x)
         # volume_background = (1+2*max_radius_z) * (1+2*max_radius_y) * (1+2*max_radius_x)
         
-        for frame in range(frames): 
+        for frame in self.dataframe[self.frame_col_name].unique():
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
@@ -777,7 +777,7 @@ class Extractor:
 
         
         
-        for frame in range(frames): 
+        for frame in self.dataframe[self.frame_col_name].unique():
             current_df = self.dataframe[self.dataframe[self.frame_col_name] == frame].reset_index()
             current_image = self.zarr_obj[frame,current_channel,:,:,:]
         
