@@ -3,7 +3,7 @@ import numpy as np
 from skimage import io
 import matplotlib.pyplot as plt 
 from matplotlib.ticker import FuncFormatter
-from aicsimageio import AICSImage
+#from aicsimageio import AICSImage
 import zarr
 from scipy.spatial import distance_matrix
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -71,7 +71,7 @@ class Track:
         The maximum movement in the x-direction.
     """
 
-    def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum):
+    def __init__(self, track_id, frames, x, y, z, intensities, adjusted_voxel_sum, dnm2_positive=None, arpc3_positive=None):
         """
         Initializes the Track object with the given parameters.
 
@@ -91,6 +91,10 @@ class Track:
             The array of intensity values for the track.
         adjusted_voxel_sum : np.ndarray
             The array of adjusted voxel sums for the track.
+        dnm2_positive : bool, optional
+            Whether the track is DNM2 positive.
+        arpc3_positive : bool, optional
+            Whether the track is ARPC3 positive.
         """
 
         self.track_id = track_id
@@ -100,6 +104,8 @@ class Track:
         self.z = z
         self.intensities = intensities
         self.adjusted_voxel_sum = adjusted_voxel_sum
+        self.dnm2_positive = dnm2_positive
+        self.arpc3_positive = arpc3_positive
         self.track_length = len(frames)
         self.track_start = frames.min()
         self.track_end = frames.max()
@@ -416,8 +422,9 @@ class Track:
     #         return final_df
 
 def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'track_id', frame_col_name: str = 'frame',
-                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'], 
-                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted']):
+                                 coords: list = ['mu_x', 'mu_y', 'mu_z'], intensities_col_name: list = ['c3_peak_mean', 'c2_peak_mean'],
+                                 adjusted_voxel_sum_col_name: list = ['c3_voxel_sum_adjusted', 'c2_voxel_sum_adjusted', 'c1_voxel_sum_adjusted'],
+                                 dnm2_positive_col: str = None, arpc3_positive_col: str = None):
     '''
     Create tracks from a pandas DataFrame.
 
@@ -427,20 +434,28 @@ def create_tracks_from_dataframe(df: pd.DataFrame, track_id_col_name: str = 'tra
     3. frame_col_name (str): Name of the column containing frame numbers. Default is 'frame'.
     4. coords (list): List of column names containing spatial coordinates (x, y, z). Default is ['mu_x', 'mu_y', 'mu_z'].
     5. intensities_col_name (list): List of column names containing intensities. Default is ['amplitude', 'c2_peak'].
+    6. dnm2_positive_col (str, optional): Name of the column indicating DNM2 positivity. Default is None.
+    7. arpc3_positive_col (str, optional): Name of the column indicating ARPC3 positivity. Default is None.
 
     Output:
     1. list: A list of Track objects created from the DataFrame.
     '''
     tracks = []
     for track_id, group in df.groupby(track_id_col_name):
+        # Get positivity status (take first value since it should be same for all rows in track)
+        dnm2_pos = group[dnm2_positive_col].iloc[0] if dnm2_positive_col and dnm2_positive_col in group.columns else None
+        arpc3_pos = group[arpc3_positive_col].iloc[0] if arpc3_positive_col and arpc3_positive_col in group.columns else None
+
         track = Track(
             track_id = group[track_id_col_name],
             frames = group[frame_col_name],
             x = group[coords[0]],
             y = group[coords[1]],
             z = group[coords[2]],
-            intensities = group[intensities_col_name].values, 
+            intensities = group[intensities_col_name].values,
             adjusted_voxel_sum = group[adjusted_voxel_sum_col_name].values,
+            dnm2_positive = dnm2_pos,
+            arpc3_positive = arpc3_pos
         )
         tracks.append(track)
     return tracks
